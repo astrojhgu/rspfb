@@ -99,9 +99,9 @@ where
             .axis_chunks_iter_mut(Axis(0), nch_fine / 2)
             .into_par_iter()
             .zip(self.pfb.par_iter_mut())
-            .zip(x.axis_iter(Axis(0)))
+            .zip(x.axis_iter(Axis(0)).into_par_iter())
             .for_each(|((mut r, pfb), x1)| {
-                let y = pfb.analyze(x1.as_slice().unwrap());
+                let y = pfb.analyze_par(x1.as_slice().unwrap());
                 let y = fftshift2(y.view());
                 r.assign(&y.slice(s![nch_fine / 4..nch_fine / 4 * 3, ..]));
             });
