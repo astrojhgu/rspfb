@@ -70,6 +70,7 @@ where
             .zip(self.pfb.iter_mut())
             .enumerate()
         {
+            //println!("{}", c);
             let y = pfb.analyze(x.slice(s![c, ..]).as_slice().unwrap());
             let y = fftshift2(y.view());
             result
@@ -104,6 +105,7 @@ where
                 let y = fftshift2(y.view());
                 r.assign(&y.slice(s![nch_fine / 4..nch_fine / 4 * 3, ..]));
             });
+        //println!("{:?} {}", result.shape(), nch_fine);
         result
     }
 }
