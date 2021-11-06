@@ -469,7 +469,7 @@ dependencies = [
 [[package]]
 name = "ndarray-npy"
 version = "0.8.0"
-source = "git+https://github.com/jturner314/ndarray-npy.git?branch=complex-elems#485fa5bdea2e420878a014c5c30cfc1c6489a2d6"
+source = "git+git://github.com/jturner314/ndarray-npy.git?branch=complex-elems#485fa5bdea2e420878a014c5c30cfc1c6489a2d6"
 dependencies = [
  "byteorder",
  "ndarray 0.15.3",
