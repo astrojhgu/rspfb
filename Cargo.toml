@@ -5,7 +5,7 @@ num-complex = '0.4.0'
 num-traits = '0.2.14'
 rustfft = '6.0.1'
 special = '0.8.1'
-ndarray-npy = {git="git://github.com/jturner314/ndarray-npy.git", branch="complex-elems", default-features = true}
+ndarray-npy = {version="0.8.1", default-features = true}
 itertools-num='0.1.3'
 
 [dependencies.fftw]
