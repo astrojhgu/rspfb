@@ -3,9 +3,6 @@ clap = '3.0.0-beta.5'
 gnuplot = '0.0.37'
 num-complex = '0.4.0'
 num-traits = '0.2.14'
-rand = '0.8.4'
-rand_chacha = '0.3.1'
-rand_distr = '0.4.2'
 rustfft = '6.0.1'
 special = '0.8.1'
 ndarray-npy = {git="https://github.com/jturner314/ndarray-npy.git", branch="complex-elems", default-features = true}
@@ -20,6 +17,6 @@ version = '0.15.3'
 
 [package]
 authors = ['GU Junhua <jhgu@nao.cas.cn>']
-edition = '2018'
+edition = '2021'
 name = 'rspfb'
 version = '0.1.0'
