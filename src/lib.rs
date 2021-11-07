@@ -12,3 +12,4 @@ pub mod oscillator;
 pub mod ospfb;
 pub mod window_funcs;
 pub mod windowed_fir;
+pub mod cfg;

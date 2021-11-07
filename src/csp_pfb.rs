@@ -5,7 +5,7 @@ use rustfft::FftNum;
 //type FFTa=Fft1Dn;
 //type FFTs=Fft1D;
 
-use ndarray::{parallel::prelude::*, s, Array2, ArrayViewMut2, Axis, ScalarOperand};
+use ndarray::{parallel::prelude::*, s, Array2, ArrayViewMut2, ArrayView2, Axis, ScalarOperand};
 use num_complex::Complex;
 use num_traits::{Float, FloatConst, NumAssign};
 use std::{
@@ -80,7 +80,8 @@ where
         result
     }
 
-    pub fn analyze_par(&mut self, mut x: ArrayViewMut2<Complex<T>>) -> Array2<Complex<T>> {
+    pub fn analyze_par(&mut self, x: ArrayView2<Complex<T>>) -> Array2<Complex<T>> {
+        let mut x=x.select(Axis(0), &self.coarse_ch_selected);
         x.axis_iter_mut(Axis(1))
             .enumerate()
             .for_each(|(_i, mut c)| {
@@ -98,8 +99,8 @@ where
         let _ = result
             .axis_chunks_iter_mut(Axis(0), nch_fine / 2)
             .into_par_iter()
-            .zip(self.pfb.par_iter_mut())
-            .zip(x.axis_iter(Axis(0)).into_par_iter())
+            .zip_eq(self.pfb.par_iter_mut())
+            .zip_eq(x.axis_iter(Axis(0)).into_par_iter())
             .for_each(|((mut r, pfb), x1)| {
                 let y = pfb.analyze_par(x1.as_slice().unwrap());
                 let y = fftshift2(y.view());
