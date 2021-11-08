@@ -12,9 +12,5 @@ pub struct PfbCfg{
 pub struct TwoStageCfg{
     pub coarse_cfg: PfbCfg,
     pub fine_cfg: PfbCfg,
-    pub freq_range: [f64;2],//in PI
-    pub nfreq: usize,
-    pub signal_len: usize,
-    pub niter:usize,
     pub selected_coarse_ch: Vec<usize>,
 }

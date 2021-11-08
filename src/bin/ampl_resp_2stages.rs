@@ -68,6 +68,53 @@ pub fn main(){
         .required(true)
     )
     .arg(
+        Arg::new("fmin")
+        .short('f')
+        .long("fmin")
+        .allow_hyphen_values(true)
+        .takes_value(true)
+        .value_name("freq")
+        .default_value("-1")
+        .required(false)
+    )
+    .arg(
+        Arg::new("fmax")
+        .short('F')
+        .long("fmax")
+        .allow_hyphen_values(true)
+        .takes_value(true)
+        .value_name("freq")
+        .default_value("1")
+        .required(false)
+    )
+    .arg(
+        Arg::new("nfreq")
+        .short('n')
+        .long("nfreq")
+        .takes_value(true)
+        .value_name("nfreq")
+        .default_value("1024")
+        .required(false)
+    )
+    .arg(
+        Arg::new("siglen")
+        .short('l')
+        .long("len")
+        .takes_value(true)
+        .value_name("signal length")
+        .default_value("8192")
+        .required(false)
+    )
+    .arg(
+        Arg::new("niter")
+        .short('t')
+        .long("niter")
+        .takes_value(true)
+        .value_name("niter")
+        .default_value("2")
+        .required(false)
+    )
+    .arg(
         Arg::new("outfile")
         .short('o')
         .long("out")
@@ -88,18 +135,22 @@ pub fn main(){
             k: k_fine, 
             tap_per_ch: tap_fine
         }
-        , freq_range
-        , nfreq
-        , signal_len
-        , niter
         , selected_coarse_ch
     }=from_reader(&mut cfg_file).unwrap();
 
+    let fmin=matches.value_of("fmin").unwrap().parse::<f64>().unwrap();
+    let fmax=matches.value_of("fmax").unwrap().parse::<f64>().unwrap();
+    let nfreq=matches.value_of("nfreq").unwrap().parse::<usize>().unwrap();
+    let signal_len=matches.value_of("siglen").unwrap().parse::<usize>().unwrap();
+    let niter=matches.value_of("niter").unwrap().parse::<usize>().unwrap();
+    
+
+
     let coeff_coarse = coeff::<f64>(nch_coarse / 2, tap_coarse, k_coarse);
     let coeff_fine = coeff::<f64>(nch_fine*2, tap_fine, k_fine);
-    let bandwidth=(freq_range[1]-freq_range[0])*f64::PI();
+    let bandwidth=(fmax-fmin)*f64::PI();
     let df=bandwidth/(nfreq+1) as f64;
-    let freqs=Array1::from(linspace(f64::PI()*freq_range[0], f64::PI()*freq_range[1]-df, nfreq).collect::<Vec<_>>());
+    let freqs=Array1::from(linspace(f64::PI()*fmin, f64::PI()*fmax-df, nfreq).collect::<Vec<_>>());
     let mut coarse_spec=Array2::<f64>::zeros((nfreq, selected_coarse_ch.len()));
     let mut fine_spec=Array2::<f64>::zeros((nfreq, selected_coarse_ch.len()*nch_fine));
     println!("{:?}", freqs);
