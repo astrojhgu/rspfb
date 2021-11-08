@@ -32,16 +32,25 @@ where
     pub fn filter(&mut self, signal: &[U]) -> Vec<U> {
         let tap = self.coeff_rev.len();
         let output_length = signal.len();
-        let mut result=Vec::with_capacity(output_length);
+        let mut x = signal.to_vec();
+        self.initial_state.reserve(tap-1+signal.len());
+        self.initial_state.append(&mut x);
+        
 
-        let mut iter=self.initial_state.iter().chain(signal);
-        for i in 0..output_length{
-            let mut iter1=iter.clone();
-            result.push(self.coeff_rev.iter().zip(iter1).map(|(&a,&b)| b*a).sum::<U>());
-            iter.next();
+        let result = self
+            .initial_state
+            .windows(tap)
+            .map(|x| x.iter().zip(&self.coeff_rev).map(|(&a, &b)| a * b).sum())
+            .collect::<Vec<_>>();
+
+        //self.initial_state=self.initial_state[output_length..].to_vec();
+        for (i,j) in (0..tap-1).zip(self.initial_state.len()-tap+1..self.initial_state.len()){
+            self.initial_state[i]=self.initial_state[j];
         }
-        let remained:Vec<_>=iter.cloned().collect();
-        self.initial_state=remained;
+        unsafe{self.initial_state.set_len(tap-1)};
+        assert_eq!(result.len(), output_length);
+        assert_eq!(self.initial_state.len(), tap-1);
+
         result
     }
 }

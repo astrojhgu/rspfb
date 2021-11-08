@@ -84,6 +84,7 @@ where
         let nch_total = nch_each * 2;
 
         let batch = (self.buffer.len() + input_signal.len()) / nch_each;
+        /* 
         let mut signal = unsafe { Array1::<R>::uninit(batch * nch_each).assume_init() };
         signal
             .slice_mut(s![..self.buffer.len()])
@@ -93,8 +94,16 @@ where
             .assign(&ArrayView1::from(
                 &input_signal[..(nch_each * batch - self.buffer.len())],
             ));
-        self.buffer =
-            ArrayView1::from(&input_signal[nch_each * batch - self.buffer.len()..]).to_vec();
+        */
+
+        let signal=Array1::from_iter(self.buffer.iter().chain(input_signal).take(nch_each*batch).cloned());
+        //self.buffer =
+        //    ArrayView1::from(&input_signal[nch_each * batch - self.buffer.len()..]).to_vec();
+        self.buffer.reserve(input_signal.len()-nch_each*batch+self.buffer.len());
+        unsafe{self.buffer.set_len(input_signal.len()-nch_each*batch+self.buffer.len())};
+        let l=self.buffer.len();
+        self.buffer.iter_mut().zip(&input_signal[input_signal.len()-l..]).for_each(|(a,&b)|{*a=b});
+
 
         let x1 = signal.into_shape((batch, nch_each)).unwrap();
         let x1 = x1.t();
@@ -155,6 +164,7 @@ where
         let nch_total = nch_each * 2;
 
         let batch = (self.buffer.len() + input_signal.len()) / nch_each;
+        /* 
         let mut signal = unsafe { Array1::<R>::uninit(batch * nch_each).assume_init() };
         signal
             .slice_mut(s![..self.buffer.len()])
@@ -164,8 +174,15 @@ where
             .assign(&ArrayView1::from(
                 &input_signal[..(nch_each * batch - self.buffer.len())],
             ));
-        self.buffer =
-            ArrayView1::from(&input_signal[nch_each * batch - self.buffer.len()..]).to_vec();
+            */
+        let signal=Array1::from_iter(self.buffer.iter().chain(input_signal).take(nch_each*batch).cloned());
+        //self.buffer =
+        //    ArrayView1::from(&input_signal[nch_each * batch - self.buffer.len()..]).to_vec();
+        self.buffer.reserve(input_signal.len()-nch_each*batch+self.buffer.len());
+        unsafe{self.buffer.set_len(input_signal.len()-nch_each*batch+self.buffer.len())};
+        let l=self.buffer.len();
+        self.buffer.iter_mut().zip(&input_signal[input_signal.len()-l..]).for_each(|(a,&b)|{*a=b});
+
 
         let mut x1 =
             transpose_par_map(signal.into_shape((batch, nch_each)).unwrap().view(), |&x| {

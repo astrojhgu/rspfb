@@ -76,16 +76,14 @@ where
     pub fn analyze(&mut self, input_signal: &[R]) -> Array2<Complex<T>> {
         let nch = self.filters.len();
         let batch = (self.buffer.len() + input_signal.len()) / nch;
-        let mut signal = unsafe { Array1::<R>::uninit(batch * nch).assume_init() };
-        signal
-            .slice_mut(s![..self.buffer.len()])
-            .assign(&ArrayView1::from(&self.buffer[..]));
-        signal
-            .slice_mut(s![self.buffer.len()..])
-            .assign(&ArrayView1::from(
-                &input_signal[..(nch * batch - self.buffer.len())],
-            ));
-        self.buffer = ArrayView1::from(&input_signal[nch * batch - self.buffer.len()..]).to_vec();
+        
+        let signal=Array1::from_iter(self.buffer.iter().chain(input_signal).take(nch*batch).cloned());
+
+        //self.buffer = ArrayView1::from(&input_signal[nch * batch - self.buffer.len()..]).to_vec();
+        self.buffer.reserve(input_signal.len()-nch*batch+self.buffer.len());
+        unsafe{self.buffer.set_len(input_signal.len()-nch*batch+self.buffer.len())};
+        let l=self.buffer.len();
+        self.buffer.iter_mut().zip(&input_signal[input_signal.len()-l..]).for_each(|(a,&b)|{*a=b});
 
         let x1 = signal.into_shape((batch, nch)).unwrap();
         let x1 = x1.t();
@@ -126,16 +124,15 @@ where
     pub fn analyze_par(&mut self, input_signal: &[R]) -> Array2<Complex<T>> {
         let nch = self.filters.len();
         let batch = (self.buffer.len() + input_signal.len()) / nch;
-        let mut signal = unsafe { Array1::<R>::uninit(batch * nch).assume_init() };
-        signal
-            .slice_mut(s![..self.buffer.len()])
-            .assign(&ArrayView1::from(&self.buffer[..]));
-        signal
-            .slice_mut(s![self.buffer.len()..])
-            .assign(&ArrayView1::from(
-                &input_signal[..(nch * batch - self.buffer.len())],
-            ));
-        self.buffer = ArrayView1::from(&input_signal[nch * batch - self.buffer.len()..]).to_vec();
+        
+        let signal=Array1::from_iter(self.buffer.iter().chain(input_signal).take(nch*batch).cloned());
+
+        //self.buffer = ArrayView1::from(&input_signal[nch * batch - self.buffer.len()..]).to_vec();
+        self.buffer.reserve(input_signal.len()-nch*batch+self.buffer.len());
+        unsafe{self.buffer.set_len(input_signal.len()-nch*batch+self.buffer.len())};
+        let l=self.buffer.len();
+        self.buffer.iter_mut().zip(&input_signal[input_signal.len()-l..]).for_each(|(a,&b)|{*a=b});
+
 
         let mut x1 = transpose_par_map(signal.into_shape((batch, nch)).unwrap().view(), |&x| {
             Complex::<T>::from(x)
