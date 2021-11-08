@@ -39,7 +39,7 @@ fn main() {
 
         signal.iter_mut().for_each(|x| *x = osc.get());
         let mut channelized = ana.analyze_par(&signal);
-        let x = csp.analyze_par(channelized.view_mut());
+        let x = csp.analyze_par(channelized.view());
 
         signal.iter_mut().for_each(|x| *x = osc.get());
         let mut channelized = ana.analyze_par(&signal);
@@ -50,7 +50,7 @@ fn main() {
         }
 
 
-        let x = csp.analyze_par(channelized.view_mut());
+        let x = csp.analyze_par(channelized.view());
         if cnt%100==0{
             eprintln!("{}", cnt);
         }
