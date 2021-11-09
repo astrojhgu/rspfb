@@ -32,9 +32,9 @@ where
     pub fn filter(&mut self, signal: &[U]) -> Vec<U> {
         let tap = self.coeff_rev.len();
         let output_length = signal.len();
-        let mut x = signal.to_vec();
+        
         self.initial_state.reserve(tap-1+signal.len());
-        self.initial_state.append(&mut x);
+        self.initial_state.extend_from_slice(signal);
         
 
         let result = self
