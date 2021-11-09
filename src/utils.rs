@@ -1,10 +1,10 @@
 #![allow(non_snake_case)]
 use std::ops::Index;
-
+/*
 use fftw::{
     plan::{C2CPlan, C2CPlan32, C2CPlan64},
     types::{Flag, Sign},
-};
+};*/
 use rustfft::{FftNum, FftPlanner};
 
 use ndarray::{parallel::prelude::*, s, Array1, Array2, ArrayView1, ArrayView2, Axis};
@@ -48,6 +48,7 @@ where
     output
 }
 
+/*
 pub trait FftwImplemented<T> {
     fn fft(input: &mut [Complex<T>], sign: Sign) -> Vec<Complex<T>>;
 }
@@ -87,6 +88,7 @@ where
 {
     T::fft(input, Sign::Backward)
 }
+*/
 
 pub fn fftshift<T>(in_data: &[T]) -> Vec<T>
 where
