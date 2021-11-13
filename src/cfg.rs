@@ -14,3 +14,9 @@ pub struct TwoStageCfg{
     pub fine_cfg: PfbCfg,
     pub selected_coarse_ch: Vec<usize>,
 }
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone, Copy)]
+pub struct DelayerCfg{
+    pub max_delay: usize,
+    pub tap: usize, 
+}
