@@ -145,7 +145,7 @@ where
         result
     }
 
-    /// A parallel version of [`self.analyze`]
+    /// A parallel version of [`Self::analyze`]
     pub fn analyze_par(&mut self, input_signal: &[R]) -> Array2<Complex<T>> {
         let nch = self.filters.len();
         let batch = (self.buffer.len() + input_signal.len()) / nch;
