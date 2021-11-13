@@ -17,16 +17,24 @@ fn main() {
 
     let nphi = 8192;
     let nfine = 16;
-    let cfine = coeff::<f64>(nfine*2, 4, 2.2);
-    let selected_ch: Vec<_> = (0..nch/2).collect();
+    let cfine = coeff::<f64>(nfine * 2, 4, 2.2);
+    let selected_ch: Vec<_> = (0..nch / 2).collect();
     //let selected_ch=vec![0,1,2];
 
     let mut spec_fines = Array2::<f64>::zeros((selected_ch.len() * nfine, nphi));
     let mut spec_coarse = Array2::<f64>::zeros((selected_ch.len(), nphi));
 
-    let freq:Vec<_>=linspace(0.0, f64::PI()-f64::PI()/nphi as f64, nphi).collect();
+    let freq: Vec<_> = linspace(0.0, f64::PI() - f64::PI() / nphi as f64, nphi).collect();
 
-    for (cnt, (&phi, (mut s1, mut s2))) in freq.iter().zip(spec_fines.axis_iter_mut(Axis(1)).zip(spec_coarse.axis_iter_mut(Axis(1)))).enumerate() {
+    for (cnt, (&phi, (mut s1, mut s2))) in freq
+        .iter()
+        .zip(
+            spec_fines
+                .axis_iter_mut(Axis(1))
+                .zip(spec_coarse.axis_iter_mut(Axis(1))),
+        )
+        .enumerate()
+    {
         let mut ana = ospfb::Analyzer::<Complex<f64>, f64>::new(nch, ArrayView1::from(&c));
         let ana_fine =
             cspfb::Analyzer::<Complex<f64>, f64>::new(nfine * 2, ArrayView1::from(&cfine));
@@ -38,20 +46,19 @@ fn main() {
         let mut signal = vec![Complex::<f64>::default(); 65536];
 
         signal.iter_mut().for_each(|x| *x = osc.get());
-        let mut channelized = ana.analyze_par(&signal);
-        let x = csp.analyze_par(channelized.view());
+        let channelized = ana.analyze_par(&signal);
+        let _x = csp.analyze_par(channelized.view());
 
         signal.iter_mut().for_each(|x| *x = osc.get());
-        let mut channelized = ana.analyze_par(&signal);
-        for i in 0..selected_ch.len(){
-            for j in 0..channelized.ncols(){
-                s2[i]+=channelized[(selected_ch[i], j)].norm_sqr();
-            }            
+        let channelized = ana.analyze_par(&signal);
+        for i in 0..selected_ch.len() {
+            for j in 0..channelized.ncols() {
+                s2[i] += channelized[(selected_ch[i], j)].norm_sqr();
+            }
         }
 
-
         let x = csp.analyze_par(channelized.view());
-        if cnt%100==0{
+        if cnt % 100 == 0 {
             eprintln!("{}", cnt);
         }
 

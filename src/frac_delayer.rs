@@ -2,27 +2,11 @@ use ndarray::ScalarOperand;
 use num_traits::{Float, FloatConst, NumAssign, NumCast};
 
 use std::{
-    iter::{
-        Sum
-    }
-    ,ops::{Add
-        , Mul
-        , MulAssign
-    }
+    iter::Sum,
+    ops::{Add, Mul, MulAssign},
 };
 
-use crate::{
-    window_funcs::{
-        apply_blackman_window
-    }
-};
-
-use crate::{
-    utils::ConcatedSlice
-    , cfg::{
-        DelayerCfg
-    }
-};
+use crate::{cfg::DelayerCfg, utils::ConcatedSlice, window_funcs::apply_blackman_window};
 
 #[derive(Clone, Copy)]
 pub struct DelayValue<T>
@@ -81,7 +65,7 @@ where
     T: Float + FloatConst + NumAssign + std::fmt::Debug + std::iter::Sum<T>,
 {
     //let mut result=vec![T::zero(); half_tap*2+1];
-    let mut result:Vec<_>=(0..2 * half_tap + 1)
+    let mut result: Vec<_> = (0..2 * half_tap + 1)
         .map(|i| {
             let x = T::from(i as isize - half_tap as isize).unwrap() + dt;
             sinc_pi(x)
@@ -93,7 +77,7 @@ where
 }
 
 #[derive(Clone)]
-pub struct FracDelayer<T, R=T> {
+pub struct FracDelayer<T, R = T> {
     pub coeff_rev: Vec<T>,
     pub buffer: Vec<R>,
     pub max_delay: usize,
@@ -164,49 +148,49 @@ where
     }
 }
 
-pub fn cfg2delayer(cfg: &DelayerCfg)->FracDelayer<f64,f64>{
-    FracDelayer::new(cfg.max_delay, cfg.tap)
+pub fn cfg2delayer(cfg: &DelayerCfg) -> FracDelayer<f64, f64> {
+    FracDelayer::new(cfg.max_delay, cfg.half_tap)
 }
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use num_complex::{
-        Complex
-    };
+    use num_complex::Complex;
 
     use rayon::prelude::*;
 
-    fn validate_frac_delayer(dt:f64, signal_omega:f64, signal_len: usize)->(f64,f64){
-        let mut delayer1=FracDelayer::<f64, Complex<f64>>::new(500, 100);
-        let mut delayer2=FracDelayer::<f64, Complex<f64>>::new(500, 100);
-        let dt_idx=(dt.ceil() as isize).abs() as usize;
-        let signal:Vec<_>=(0..signal_len).map(|i|{
-            ((i as f64*signal_omega)*Complex::new(0.0, 1.0)).exp()
-        }).collect();
-        let delayed_signal1=delayer1.delay(&signal, 0.0);
-        let delayed_signal2=delayer2.delay(&signal, dt);
+    fn validate_frac_delayer(dt: f64, signal_omega: f64, signal_len: usize) -> (f64, f64) {
+        let mut delayer1 = FracDelayer::<f64, Complex<f64>>::new(500, 100);
+        let mut delayer2 = FracDelayer::<f64, Complex<f64>>::new(500, 100);
+        let dt_idx = (dt.ceil() as isize).abs() as usize;
+        let signal: Vec<_> = (0..signal_len)
+            .map(|i| ((i as f64 * signal_omega) * Complex::new(0.0, 1.0)).exp())
+            .collect();
+        let delayed_signal1 = delayer1.delay(&signal, 0.0);
+        let delayed_signal2 = delayer2.delay(&signal, dt);
         //println!("{}", delayed_signal1.len());
-        let corr=&delayed_signal1[dt_idx..signal.len()-dt_idx].iter().zip(&delayed_signal2[dt_idx..signal.len()-dt_idx]).map(|(&a,&b)|{
-            a*b.conj()
-        }).sum::<Complex<f64>>();
-        let answer=(signal_omega*dt).to_degrees();
-        let result=corr.arg().to_degrees();
-        (answer, result)    
+        let corr = &delayed_signal1[dt_idx..signal.len() - dt_idx]
+            .iter()
+            .zip(&delayed_signal2[dt_idx..signal.len() - dt_idx])
+            .map(|(&a, &b)| a * b.conj())
+            .sum::<Complex<f64>>();
+        let answer = (signal_omega * dt).to_degrees();
+        let result = corr.arg().to_degrees();
+        (answer, result)
     }
-    
 
     #[test]
     fn frac_delayer_test() {
-        let dt_min=-2.0;
-        let dt_max=2.0;
-        let nsteps=1000;
-        let dt:Vec<_>=(0..=nsteps).map(|i| (dt_max-dt_min)/nsteps as f64*i as f64+dt_min).collect();
+        let dt_min = -2.0;
+        let dt_max = 2.0;
+        let nsteps = 1000;
+        let dt: Vec<_> = (0..=nsteps)
+            .map(|i| (dt_max - dt_min) / nsteps as f64 * i as f64 + dt_min)
+            .collect();
         println!("{:?}", dt);
-        dt.into_par_iter().for_each(|dt|{
-            let (a,b)=validate_frac_delayer(dt, f64::PI()/64.0, 65536);
-            assert!((a-b).abs()<0.0025);
+        dt.into_par_iter().for_each(|dt| {
+            let (a, b) = validate_frac_delayer(dt, f64::PI() / 64.0, 65536);
+            assert!((a - b).abs() < 0.0025);
         });
     }
 }

@@ -15,14 +15,14 @@ where
 {
     (0..l * nch)
         .map(|i| {
-            let x=T::from(if i<l*nch/2 {i} else {l*nch-i}).unwrap();
-            let y=T::from(l/2).unwrap()*k;
-            if x>=y{
+            let x = T::from(if i < l * nch / 2 { i } else { l * nch - i }).unwrap();
+            let y = T::from(l / 2).unwrap() * k;
+            if x >= y {
                 T::zero()
-            }else if x<y.floor(){
+            } else if x < y.floor() {
                 T::one()
-            }else{
-                y-y.floor()
+            } else {
+                y - y.floor()
             }
         })
         .collect()

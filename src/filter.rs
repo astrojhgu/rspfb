@@ -32,10 +32,9 @@ where
     pub fn filter(&mut self, signal: &[U]) -> Vec<U> {
         let tap = self.coeff_rev.len();
         let output_length = signal.len();
-        
-        self.initial_state.reserve(tap-1+signal.len());
+
+        self.initial_state.reserve(tap - 1 + signal.len());
         self.initial_state.extend_from_slice(signal);
-        
 
         let result = self
             .initial_state
@@ -44,12 +43,13 @@ where
             .collect::<Vec<_>>();
 
         //self.initial_state=self.initial_state[output_length..].to_vec();
-        for (i,j) in (0..tap-1).zip(self.initial_state.len()+1-tap..self.initial_state.len()){
-            self.initial_state[i]=self.initial_state[j];
+        for (i, j) in (0..tap - 1).zip(self.initial_state.len() + 1 - tap..self.initial_state.len())
+        {
+            self.initial_state[i] = self.initial_state[j];
         }
-        unsafe{self.initial_state.set_len(tap-1)};
+        unsafe { self.initial_state.set_len(tap - 1) };
         assert_eq!(result.len(), output_length);
-        assert_eq!(self.initial_state.len(), tap-1);
+        assert_eq!(self.initial_state.len(), tap - 1);
 
         result
     }
