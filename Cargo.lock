@@ -553,6 +553,7 @@ dependencies = [
  "ndarray-npy",
  "num-complex",
  "num-traits",
+ "rayon",
  "rustfft",
  "serde",
  "serde_yaml",
