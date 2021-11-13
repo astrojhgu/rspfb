@@ -9,14 +9,14 @@ use num_traits::{Float, FloatConst, NumAssign, Zero};
 use rustfft::FftNum;
 use special::Error;
 
-pub fn lp_coeff<T>(nch: usize, l: usize, k: T) -> Vec<T>
+pub fn lp_coeff<T>(nch: usize, tap_per_ch: usize, k: T) -> Vec<T>
 where
     T: Float + FloatConst,
 {
-    (0..l * nch)
+    (0..tap_per_ch * nch)
         .map(|i| {
-            let x = T::from(if i < l * nch / 2 { i } else { l * nch - i }).unwrap();
-            let y = T::from(l / 2).unwrap() * k;
+            let x = T::from(if i < tap_per_ch * nch / 2 { i } else { tap_per_ch * nch - i }).unwrap();
+            let y = T::from(tap_per_ch / 2).unwrap() * k;
             if x >= y {
                 T::zero()
             } else if x < y.floor() {
@@ -48,11 +48,11 @@ where
     fftshift(&b)
 }
 
-pub fn coeff<T>(nch: usize, l: usize, k: T) -> Array1<T>
+pub fn coeff<T>(nch: usize, tap_per_ch: usize, k: T) -> Array1<T>
 where
     T: Error + Float + FloatConst + NumAssign + std::iter::Sum<T> + std::fmt::Debug + FftNum,
 {
-    let mut a = lp_coeff(nch, l, k);
+    let mut a = lp_coeff(nch, tap_per_ch, k);
     symmetrize(&mut a);
     let mut b = to_time_domain(&a);
     //apply_hamming_window(&mut b);

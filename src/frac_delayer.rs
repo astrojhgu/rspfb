@@ -1,3 +1,5 @@
+//! fractional delayer
+
 use ndarray::ScalarOperand;
 use num_traits::{Float, FloatConst, NumAssign, NumCast};
 
@@ -8,19 +10,25 @@ use std::{
 
 use crate::{cfg::DelayerCfg, utils::ConcatedSlice, window_funcs::apply_blackman_window};
 
+
+/// Delay value
 #[derive(Clone, Copy)]
 pub struct DelayValue<T>
 where
     T: Float,
 {
+    /// integral delay part
     pub i: isize,
+    /// fractional delay part
     pub f: T,
 }
 
+/// types that can be casted to [`DelayValue`]
 pub trait ToDelayValue<T>: Copy
 where
     T: Float,
 {
+    /// convert to [`DelayValue`]
     fn to_delay_value(&self) -> DelayValue<T>;
 }
 
@@ -48,6 +56,8 @@ where
     }
 }
 
+
+/// help function for constructing fractional delayer
 fn sinc_pi<T>(x: T) -> T
 where
     T: Float + FloatConst,
@@ -60,6 +70,8 @@ where
     }
 }
 
+
+/// calculating reversed coefficients for the delayer
 pub fn delayer_coeff_rev<T>(dt: T, half_tap: usize) -> Vec<T>
 where
     T: Float + FloatConst + NumAssign + std::fmt::Debug + std::iter::Sum<T>,
@@ -76,6 +88,8 @@ where
     result
 }
 
+
+/// Fractional delayer
 #[derive(Clone)]
 pub struct FracDelayer<T, R = T> {
     pub coeff_rev: Vec<T>,
@@ -107,6 +121,8 @@ where
         + Sync
         + Send,
 {
+
+    /// construct a FracDelayer
     pub fn new(max_delay: usize, half_tap: usize) -> FracDelayer<T, R> {
         FracDelayer {
             coeff_rev: delayer_coeff_rev(T::zero(), half_tap),
@@ -115,6 +131,10 @@ where
         }
     }
 
+    /// delay the input signal
+    /// Note that there is an unchangable intrinsic delay related to the filter tap
+    /// * `signal` - input signal
+    /// * `dv` - delay value
     pub fn delay<U>(&mut self, signal: &[R], dv: U) -> Vec<R>
     where
         U: ToDelayValue<T> + std::fmt::Debug,
@@ -148,6 +168,8 @@ where
     }
 }
 
+
+/// construct a delayer from [`crate::cfg::DelayerCfg`]
 pub fn cfg2delayer(cfg: &DelayerCfg) -> FracDelayer<f64, f64> {
     FracDelayer::new(cfg.max_delay, cfg.half_tap)
 }
@@ -183,7 +205,7 @@ mod tests {
     fn frac_delayer_test() {
         let dt_min = -2.0;
         let dt_max = 2.0;
-        let nsteps = 1000;
+        let nsteps = 100;
         let dt: Vec<_> = (0..=nsteps)
             .map(|i| (dt_max - dt_min) / nsteps as f64 * i as f64 + dt_min)
             .collect();

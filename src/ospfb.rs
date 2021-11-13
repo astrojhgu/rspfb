@@ -1,11 +1,8 @@
+//! oversampling poly phase filter bank
+
 #![allow(clippy::uninit_vec)]
 use crate::{filter::Filter, oscillator::HalfChShifter, utils::transpose_par_map};
-
 use rustfft::{FftNum, FftPlanner};
-
-//type FFTa=Fft1Dn;
-//type FFTs=Fft1D;
-
 use ndarray::{parallel::prelude::*, s, Array1, Array2, ArrayView1, Axis, ScalarOperand};
 use num_complex::Complex;
 use num_traits::{Float, FloatConst, NumAssign};
@@ -14,10 +11,18 @@ use std::{
     ops::{Add, Mul},
 };
 
+/// Pfb for channelizing
 pub struct Analyzer<R, T> {
+    /// filters for even channels
     filters_even: Vec<Filter<T, Complex<T>>>,
+
+    /// filters for odd channels
     filters_odd: Vec<Filter<T, Complex<T>>>,
+
+    /// a buffer, ensurning that the input signal length need not to be nch*tap. The remaining elements will be stored and be concated with the input next time.
     buffer: Vec<R>,
+
+    /// shifting input signal by half of the channel spacing
     shifter: HalfChShifter<T>,
 }
 
@@ -53,6 +58,23 @@ where
         + ScalarOperand
         + Sync,
 {
+    /// constructor
+    /// * `nch_total` - total number of channels, including even and odd, pos and neg channels
+    /// * `coeff` - property low pass filter coefficients, the length of which should be equal to `nch_total`/2*`tap_per_ch`
+    /// ```
+    /// extern crate rspfb;
+    /// use num_complex::Complex;
+    /// use rspfb::{
+    ///     windowed_fir
+    ///     , ospfb::Analyzer
+    /// };
+    ///
+    /// let nch=32;
+    /// let tap_per_ch=16;
+    /// let k=1.1;
+    /// let coeff=windowed_fir::coeff::<f64>(nch, tap_per_ch, k);
+    /// let mut pfb=Analyzer::<Complex<f64>, f64>::new(nch, coeff.view());
+    /// ```
     pub fn new(nch_total: usize, coeff: ArrayView1<T>) -> Analyzer<R, T> {
         let nch_each = nch_total / 2;
         let tap = coeff.len() / nch_each;
@@ -80,6 +102,30 @@ where
         }
     }
 
+
+    /// performing the channelizing
+    /// * `input_signal` - input 1-d time series of the input signal
+    /// return value - channelized signal, with `nch_total` rows
+    /// ```
+    /// extern crate rspfb;
+    /// use num_complex::Complex;
+    /// use rspfb::{
+    ///     windowed_fir
+    ///     , ospfb::Analyzer
+    ///     , oscillator::COscillator
+    /// };
+    /// use num_traits::{FloatConst};
+    ///
+    /// let nch=32;
+    /// let tap_per_ch=16;
+    /// let k=1.1;
+    /// let coeff=windowed_fir::coeff::<f64>(nch, tap_per_ch, k);
+    /// let mut pfb=Analyzer::<Complex<f64>, f64>::new(nch, coeff.view());
+    /// let mut osc=COscillator::<f64>::new(0.0, f64::PI()/(nch/2) as f64*4.0);//some certain frequency
+    /// let input_signal:Vec<_>=(0..256).map(|_| osc.get()).collect();
+    /// let channelized_signal=pfb.analyze(&input_signal);
+    /// assert_eq!(channelized_signal.nrows(), nch);
+    /// ```
     pub fn analyze(&mut self, input_signal: &[R]) -> Array2<Complex<T>> {
         let nch_each = self.filters_even.len();
         let nch_total = nch_each * 2;
@@ -172,6 +218,7 @@ where
         result
     }
 
+    /// The parallel version of [`Self::analyze`]
     pub fn analyze_par(&mut self, input_signal: &[R]) -> Array2<Complex<T>> {
         let nch_each = self.filters_even.len();
         let nch_total = nch_each * 2;

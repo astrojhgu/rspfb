@@ -1,11 +1,17 @@
+//! A module containing FIR filter
+
 use std::{
     iter::Sum,
     ops::{Add, Mul},
 };
 
+
+/// FIR filter
 #[derive(Clone)]
 pub struct Filter<T, U> {
+    /// reversed coefficients, i.e., impulse respone
     pub coeff_rev: Vec<T>,
+    /// filter state
     pub initial_state: Vec<U>,
 }
 
@@ -14,6 +20,7 @@ where
     T: Copy,
     U: Copy + Add<U, Output = U> + Mul<T, Output = U> + Sum + Default,
 {
+    /// construct a FIR with its coefficients    
     pub fn new(mut coeff: Vec<T>) -> Self {
         coeff.reverse();
         let tap = coeff.len();
@@ -23,12 +30,16 @@ where
         }
     }
 
+
+    /// set the initial state
     pub fn with_initial_state(mut self, initial_state: Vec<U>) -> Self {
         assert!(initial_state.len() == self.coeff_rev.len() - 1);
         self.initial_state = initial_state;
         self
     }
 
+    /// filter a time series signal
+    /// return the filtered signal
     pub fn filter(&mut self, signal: &[U]) -> Vec<U> {
         let tap = self.coeff_rev.len();
         let output_length = signal.len();
