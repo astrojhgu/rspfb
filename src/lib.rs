@@ -1,3 +1,5 @@
+//! poly phase filter bank
+
 //pub mod coeff;
 pub mod filter;
 pub mod traits;
