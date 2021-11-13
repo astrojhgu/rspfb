@@ -5,7 +5,6 @@ use std::{
     ops::{Add, Mul},
 };
 
-
 /// FIR filter
 #[derive(Clone)]
 pub struct Filter<T, U> {
@@ -29,7 +28,6 @@ where
             initial_state: vec![<U as Default>::default(); tap - 1],
         }
     }
-
 
     /// set the initial state
     pub fn with_initial_state(mut self, initial_state: Vec<U>) -> Self {

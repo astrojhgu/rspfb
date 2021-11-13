@@ -15,7 +15,12 @@ where
 {
     (0..tap_per_ch * nch)
         .map(|i| {
-            let x = T::from(if i < tap_per_ch * nch / 2 { i } else { tap_per_ch * nch - i }).unwrap();
+            let x = T::from(if i < tap_per_ch * nch / 2 {
+                i
+            } else {
+                tap_per_ch * nch - i
+            })
+            .unwrap();
             let y = T::from(tap_per_ch / 2).unwrap() * k;
             if x >= y {
                 T::zero()

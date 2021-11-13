@@ -28,7 +28,6 @@ where
     }
 }
 
-
 /// Shifting signal by half of the channel spacing
 pub struct HalfChShifter<T> {
     /// number of channels
@@ -37,7 +36,6 @@ pub struct HalfChShifter<T> {
     factor: Vec<Complex<T>>,
     idx: usize,
 }
-
 
 impl<T> HalfChShifter<T>
 where

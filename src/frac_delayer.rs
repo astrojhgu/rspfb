@@ -10,7 +10,6 @@ use std::{
 
 use crate::{cfg::DelayerCfg, utils::ConcatedSlice, window_funcs::apply_blackman_window};
 
-
 /// Delay value
 #[derive(Clone, Copy)]
 pub struct DelayValue<T>
@@ -56,7 +55,6 @@ where
     }
 }
 
-
 /// help function for constructing fractional delayer
 fn sinc_pi<T>(x: T) -> T
 where
@@ -69,7 +67,6 @@ where
         y.sin() / y
     }
 }
-
 
 /// calculating reversed coefficients for the delayer
 pub fn delayer_coeff_rev<T>(dt: T, half_tap: usize) -> Vec<T>
@@ -87,7 +84,6 @@ where
     //apply_hamming_window(&mut result);
     result
 }
-
 
 /// Fractional delayer
 #[derive(Clone)]
@@ -121,7 +117,6 @@ where
         + Sync
         + Send,
 {
-
     /// construct a FracDelayer
     pub fn new(max_delay: usize, half_tap: usize) -> FracDelayer<T, R> {
         FracDelayer {
@@ -167,7 +162,6 @@ where
         result
     }
 }
-
 
 /// construct a delayer from [`crate::cfg::DelayerCfg`]
 pub fn cfg2delayer(cfg: &DelayerCfg) -> FracDelayer<f64, f64> {

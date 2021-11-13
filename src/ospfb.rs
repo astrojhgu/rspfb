@@ -2,10 +2,10 @@
 
 #![allow(clippy::uninit_vec)]
 use crate::{filter::Filter, oscillator::HalfChShifter, utils::transpose_par_map};
-use rustfft::{FftNum, FftPlanner};
 use ndarray::{parallel::prelude::*, s, Array1, Array2, ArrayView1, Axis, ScalarOperand};
 use num_complex::Complex;
 use num_traits::{Float, FloatConst, NumAssign};
+use rustfft::{FftNum, FftPlanner};
 use std::{
     iter::Sum,
     ops::{Add, Mul},
@@ -72,7 +72,7 @@ where
     /// let nch=32;
     /// let tap_per_ch=16;
     /// let k=1.1;
-    /// let coeff=windowed_fir::coeff::<f64>(nch, tap_per_ch, k);
+    /// let coeff=windowed_fir::coeff::<f64>(nch/2, tap_per_ch, k);
     /// let mut pfb=Analyzer::<Complex<f64>, f64>::new(nch, coeff.view());
     /// ```
     pub fn new(nch_total: usize, coeff: ArrayView1<T>) -> Analyzer<R, T> {
@@ -102,7 +102,6 @@ where
         }
     }
 
-
     /// performing the channelizing
     /// * `input_signal` - input 1-d time series of the input signal
     /// * return value - channelized signal, with `nch_total` rows
@@ -119,7 +118,7 @@ where
     /// let nch=32;
     /// let tap_per_ch=16;
     /// let k=1.1;
-    /// let coeff=windowed_fir::coeff::<f64>(nch, tap_per_ch, k);
+    /// let coeff=windowed_fir::coeff::<f64>(nch/2, tap_per_ch, k);
     /// let mut pfb=Analyzer::<Complex<f64>, f64>::new(nch, coeff.view());
     /// let mut osc=COscillator::<f64>::new(0.0, f64::PI()/(nch/2) as f64*4.0);//some certain frequency
     /// let input_signal:Vec<_>=(0..256).map(|_| osc.get()).collect();
