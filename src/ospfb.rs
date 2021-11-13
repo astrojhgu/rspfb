@@ -105,7 +105,7 @@ where
 
     /// performing the channelizing
     /// * `input_signal` - input 1-d time series of the input signal
-    /// return value - channelized signal, with `nch_total` rows
+    /// * return value - channelized signal, with `nch_total` rows
     /// ```
     /// extern crate rspfb;
     /// use num_complex::Complex;

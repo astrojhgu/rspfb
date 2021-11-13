@@ -46,7 +46,7 @@ where
     /// coarse_ch_selected
     /// * `coarse_ch_selected` - slected coarse channels
     /// * `pfb1` - a template, which is cloned for each selected coarse channel
-    /// return value - a constructed CsPfb
+    /// * return value - a constructed CsPfb
     pub fn new(coarse_ch_selected: &[usize], pfb1: &cspfb::Analyzer<Complex<T>, T>) -> CspPfb<T> {
         let coarse_ch_selected = Vec::from(coarse_ch_selected);
         let pfb: Vec<_> = coarse_ch_selected.iter().map(|_| pfb1.clone()).collect();
@@ -60,7 +60,7 @@ where
 
     /// Further channelize the input coarse channels to finer channels
     /// * `x` - input coarse channels, 2D array view, with `number of coarse channels` rows.
-    /// return value - a 2D array with fine channel data, with `number of fine channels` rows.
+    /// * return value - a 2D array with fine channel data, with `number of fine channels` rows.
     pub fn analyze(&mut self, mut x: ArrayViewMut2<Complex<T>>) -> Array2<Complex<T>> {
         x.axis_iter_mut(Axis(1))
             .enumerate()

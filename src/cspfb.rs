@@ -56,7 +56,7 @@ where
     /// constructor
     /// * `nch` - number of channels including both pos and neg ones
     /// * `coeff` - prototype low-pass filter, the tap of which should be nch times of the tap of each branch.
-    /// return value - `Analyzer`
+    /// * return value - `Analyzer`
     pub fn new(nch: usize, coeff: ArrayView1<T>) -> Analyzer<R, T> {
         let tap = coeff.len() / nch;
         assert!(nch * tap == coeff.len());
@@ -83,7 +83,7 @@ where
 
     /// Channelize input signal
     /// * `input_signal` - a 1-d slice containing time domain input signal
-    /// return value - channelized data, with `nch` rows
+    /// * return value - channelized data, with `nch` rows
     pub fn analyze(&mut self, input_signal: &[R]) -> Array2<Complex<T>> {
         let nch = self.filters.len();
         let batch = (self.buffer.len() + input_signal.len()) / nch;
