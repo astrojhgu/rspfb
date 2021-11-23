@@ -1,7 +1,7 @@
 //! Central Signal Processor PFB
 //! Implemented with critical sampling pfb
 
-use crate::{cspfb, oscillator::HalfChShifter, utils::fftshift2};
+use crate::{cspfb::Analyzer, oscillator::HalfChShifter, utils::fftshift2};
 use ndarray::{parallel::prelude::*, s, Array2, ArrayView2, ArrayViewMut2, Axis, ScalarOperand};
 use num_complex::Complex;
 use num_traits::{Float, FloatConst, NumAssign};
@@ -14,7 +14,7 @@ use std::{
 /// Struct for central processor pfb
 pub struct CspPfb<T> {
     /// an array of cspfbs, each one for one coarse channel that is selected
-    pfb: Vec<cspfb::Analyzer<Complex<T>, T>>,
+    pfb: Vec<Analyzer<Complex<T>, T>>,
     /// coarse channels selected
     coarse_ch_selected: Vec<usize>,
     /// shift frequency in each coarse channel by half of the width of a fine channel
@@ -47,7 +47,7 @@ where
     /// * `coarse_ch_selected` - slected coarse channels
     /// * `pfb1` - a template, which is cloned for each selected coarse channel
     /// * return value - a constructed CsPfb
-    pub fn new(coarse_ch_selected: &[usize], pfb1: &cspfb::Analyzer<Complex<T>, T>) -> CspPfb<T> {
+    pub fn new(coarse_ch_selected: &[usize], pfb1: &Analyzer<Complex<T>, T>) -> CspPfb<T> {
         let coarse_ch_selected = Vec::from(coarse_ch_selected);
         let pfb: Vec<_> = coarse_ch_selected.iter().map(|_| pfb1.clone()).collect();
         let shifter = HalfChShifter::<T>::new(pfb1.nch(), false);

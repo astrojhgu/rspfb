@@ -156,7 +156,7 @@ pub fn main() {
 
             let mut signal = vec![Complex::<f64>::default(); signal_len];
             signal.iter_mut().for_each(|x| *x = osc.get());
-            let coarse_data = coarse_pfb.analyze_par(&signal);
+            let mut coarse_data = coarse_pfb.analyze_par(&signal);
             let coarse_spec = coarse_data.map(|x| x.norm_sqr()).sum_axis(Axis(1));
 
             for (i, &c) in selected_coarse_ch.iter().enumerate() {

@@ -2,6 +2,7 @@
 
 //pub mod coeff;
 pub mod filter;
+pub mod batch_filter;
 pub mod traits;
 pub mod utils;
 //pub mod npr_complex;

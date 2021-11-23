@@ -42,6 +42,6 @@ fn main() -> std::io::Result<()> {
     }
 
     let mut npz = NpzWriter::new(std::fs::File::create("out.npz").unwrap());
-    let _ = npz.add_array("channelized", &specs).unwrap();
+    let _ = npz.add_array("coarse", &specs).unwrap();
     Ok(())
 }
