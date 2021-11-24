@@ -2,7 +2,7 @@
 
 #![allow(clippy::uninit_vec)]
 
-use crate::{batch_fir::BatchFilter, utils::transpose_par_map};
+use crate::batch_filter::BatchFilter;
 use ndarray::{parallel::prelude::*, s, Array1, Array2, ArrayView1, Axis, ScalarOperand};
 use num_complex::Complex;
 use num_traits::{Float, FloatConst, NumAssign};
@@ -16,7 +16,7 @@ use std::{
 #[derive(Clone)]
 pub struct Analyzer<R, T> {
     /// A vec of filters, one for each branch
-    batch_filter:BatchFilter<T>,
+    batch_filter: BatchFilter<T>,
     /// a buffer, ensurning that the input signal length need not to be nch*tap. The remaining elements will be stored and be concated with the input next time.
     buffer: Vec<R>,
 }
@@ -60,10 +60,15 @@ where
     pub fn new(nch: usize, coeff: ArrayView1<T>) -> Analyzer<R, T> {
         let tap = coeff.len() / nch;
         assert!(nch * tap == coeff.len());
-        let coeff=coeff.into_shape((tap, nch)).unwrap().t().as_standard_layout().to_owned();
+        let coeff = coeff
+            .into_shape((tap, nch))
+            .unwrap()
+            .t()
+            .as_standard_layout()
+            .to_owned();
         let coeff = coeff.slice(s![..;-1,..]);
 
-        let batch_filter=BatchFilter::new(coeff);
+        let batch_filter = BatchFilter::new(coeff);
 
         Analyzer {
             batch_filter,
@@ -77,7 +82,7 @@ where
         self.batch_filter.filters.len()
     }
 
-    pub fn buffer_input(&mut self, input_signal:&[R])->Array1<R>{
+    pub fn buffer_input(&mut self, input_signal: &[R]) -> Array1<R> {
         let nch = self.batch_filter.filters.len();
         let batch = (self.buffer.len() + input_signal.len()) / nch;
         let signal = Array1::from_iter(
@@ -109,22 +114,20 @@ where
         let nch = self.batch_filter.filters.len();
         let batch = (self.buffer.len() + input_signal.len()) / nch;
 
-        let signal=self.buffer_input(input_signal);
+        let signal = self.buffer_input(input_signal);
 
-
-        let mut x1=self.batch_filter.filter(signal.view());
+        let mut x1 = self.batch_filter.filter(signal.view());
         let mut result = unsafe { Array2::<Complex<T>>::uninit((nch, batch)).assume_init() };
         let mut planner = FftPlanner::new();
         let fft = planner.plan_fft_forward(nch);
 
-        result.axis_iter_mut(Axis(1))
+        result
+            .axis_iter_mut(Axis(1))
             .zip(x1.axis_iter_mut(Axis(0)))
-            .for_each(|(mut r_col, mut x1_row)|{
+            .for_each(|(mut r_col, mut x1_row)| {
                 fft.process(x1_row.as_slice_mut().unwrap());
                 r_col.assign(&x1_row.view());
-            })
-
-        ;
+            });
         result
     }
 
@@ -133,22 +136,21 @@ where
         let nch = self.batch_filter.filters.len();
         let batch = (self.buffer.len() + input_signal.len()) / nch;
 
-        let signal=self.buffer_input(input_signal);
+        let signal = self.buffer_input(input_signal);
 
-
-        let mut x1=self.batch_filter.filter_par(signal.view());
+        let mut x1 = self.batch_filter.filter_par(signal.view());
         let mut result = unsafe { Array2::<Complex<T>>::uninit((nch, batch)).assume_init() };
         let mut planner = FftPlanner::new();
         let fft = planner.plan_fft_forward(nch);
 
-        result.axis_iter_mut(Axis(1)).into_par_iter()
+        result
+            .axis_iter_mut(Axis(1))
+            .into_par_iter()
             .zip(x1.axis_iter_mut(Axis(0)).into_par_iter())
-            .for_each(|(mut r_col, mut x1_row)|{
+            .for_each(|(mut r_col, mut x1_row)| {
                 fft.process(x1_row.as_slice_mut().unwrap());
                 r_col.assign(&x1_row.view());
-            })
-
-        ;
+            });
         result
     }
 }

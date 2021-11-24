@@ -1,7 +1,7 @@
 //! oversampling poly phase filter bank
 
 #![allow(clippy::uninit_vec)]
-use crate::{batch_fir::BatchFilter, oscillator::HalfChShifter, utils::transpose_par_map};
+use crate::{batch_filter::BatchFilter, oscillator::HalfChShifter};
 use ndarray::{parallel::prelude::*, s, Array1, Array2, ArrayView1, Axis, ScalarOperand};
 use num_complex::Complex;
 use num_traits::{Float, FloatConst, NumAssign};
@@ -79,12 +79,16 @@ where
         let nch_each = nch_total / 2;
         let tap = coeff.len() / nch_each;
         assert!(nch_each * tap == coeff.len());
-        let coeff=coeff.into_shape((tap, nch_each)).unwrap().t().as_standard_layout().to_owned();
+        let coeff = coeff
+            .into_shape((tap, nch_each))
+            .unwrap()
+            .t()
+            .as_standard_layout()
+            .to_owned();
         let coeff = coeff.slice(s![..;-1,..]);
-        let filter_even=BatchFilter::new(coeff);
-        let filter_odd=BatchFilter::new(coeff);
+        let filter_even = BatchFilter::new(coeff);
+        let filter_odd = BatchFilter::new(coeff);
 
-        
         let shifter = HalfChShifter::<T>::new(nch_each, false);
 
         Analyzer {
@@ -95,13 +99,11 @@ where
         }
     }
 
-    pub fn buffer_input(&mut self, input_signal: &[R])->Array1<R>{
+    pub fn buffer_input(&mut self, input_signal: &[R]) -> Array1<R> {
         let nch_each = self.filter_even.filters.len();
-        
-        let nch_total = nch_each * 2;
 
         let batch = (self.buffer.len() + input_signal.len()) / nch_each;
-        
+
         let signal = Array1::from_iter(
             self.buffer
                 .iter()
@@ -150,21 +152,23 @@ where
     /// ```
     pub fn analyze(&mut self, input_signal: &[R]) -> Array2<Complex<T>> {
         let nch_each = self.filter_even.filters.len();
-        
+
         let nch_total = nch_each * 2;
 
         let batch = (self.buffer.len() + input_signal.len()) / nch_each;
-        
-        let signal=self.buffer_input(input_signal);
-        let signal_shifted=Array1::from_iter(signal.iter().map(|&x|{Complex::<T>::from(x)*self.shifter.get()}));
 
-        let mut x1=self.filter_even.filter(signal.view());
-        let mut x2=self.filter_odd.filter::<Complex<T>>(signal_shifted.view());
+        let signal = self.buffer_input(input_signal);
+        let signal_shifted = Array1::from_iter(
+            signal
+                .iter()
+                .map(|&x| Complex::<T>::from(x) * self.shifter.get()),
+        );
 
-        
+        let mut x1 = self.filter_even.filter(signal.view());
+        let mut x2 = self.filter_odd.filter::<Complex<T>>(signal_shifted.view());
+
         let mut result = unsafe { Array2::<Complex<T>>::uninit((nch_total, batch)).assume_init() };
-        
-        
+
         //let mut fft_plan=CFFT::<T>::with_len(x1.shape()[0]);
         let mut planner = FftPlanner::new();
         let fft = planner.plan_fft_forward(nch_each);
@@ -173,7 +177,9 @@ where
             .zip(x1.axis_iter_mut(Axis(0)))
             .for_each(|(mut r_col, mut x1_row)| {
                 fft.process(x1_row.as_slice_mut().unwrap());
-                r_col.slice_mut(s![0..;2]).assign(&ArrayView1::from(&x1_row.view()));
+                r_col
+                    .slice_mut(s![0..;2])
+                    .assign(&ArrayView1::from(&x1_row.view()));
             });
 
         result
@@ -181,7 +187,9 @@ where
             .zip(x2.axis_iter_mut(Axis(0)))
             .for_each(|(mut r_col, mut x2_row)| {
                 fft.process(x2_row.as_slice_mut().unwrap());
-                r_col.slice_mut(s![1..;2]).assign(&ArrayView1::from(&x2_row.view()));
+                r_col
+                    .slice_mut(s![1..;2])
+                    .assign(&ArrayView1::from(&x2_row.view()));
             });
 
         result
@@ -190,38 +198,48 @@ where
     /// The parallel version of [`Self::analyze`]
     pub fn analyze_par(&mut self, input_signal: &[R]) -> Array2<Complex<T>> {
         let nch_each = self.filter_even.filters.len();
-        
+
         let nch_total = nch_each * 2;
 
         let batch = (self.buffer.len() + input_signal.len()) / nch_each;
-        
-        let signal=self.buffer_input(input_signal);
-        let signal_shifted=Array1::from_iter(signal.iter().map(|&x|{Complex::<T>::from(x)*self.shifter.get()}));
 
-        let mut x1=self.filter_even.filter_par(signal.view());
-        let mut x2=self.filter_odd.filter_par::<Complex<T>>(signal_shifted.view());
+        let signal = self.buffer_input(input_signal);
+        let signal_shifted = Array1::from_iter(
+            signal
+                .iter()
+                .map(|&x| Complex::<T>::from(x) * self.shifter.get()),
+        );
 
-        
+        let mut x1 = self.filter_even.filter_par(signal.view());
+        let mut x2 = self
+            .filter_odd
+            .filter_par::<Complex<T>>(signal_shifted.view());
+
         let mut result = unsafe { Array2::<Complex<T>>::uninit((nch_total, batch)).assume_init() };
-        
-        
+
         //let mut fft_plan=CFFT::<T>::with_len(x1.shape()[0]);
         let mut planner = FftPlanner::new();
         let fft = planner.plan_fft_forward(nch_each);
         result
-            .axis_iter_mut(Axis(1)).into_par_iter()
+            .axis_iter_mut(Axis(1))
+            .into_par_iter()
             .zip(x1.axis_iter_mut(Axis(0)).into_par_iter())
             .for_each(|(mut r_col, mut x1_row)| {
                 fft.process(x1_row.as_slice_mut().unwrap());
-                r_col.slice_mut(s![0..;2]).assign(&ArrayView1::from(&x1_row.view()));
+                r_col
+                    .slice_mut(s![0..;2])
+                    .assign(&ArrayView1::from(&x1_row.view()));
             });
 
         result
-            .axis_iter_mut(Axis(1)).into_par_iter()
+            .axis_iter_mut(Axis(1))
+            .into_par_iter()
             .zip(x2.axis_iter_mut(Axis(0)).into_par_iter())
             .for_each(|(mut r_col, mut x2_row)| {
                 fft.process(x2_row.as_slice_mut().unwrap());
-                r_col.slice_mut(s![1..;2]).assign(&ArrayView1::from(&x2_row.view()));
+                r_col
+                    .slice_mut(s![1..;2])
+                    .assign(&ArrayView1::from(&x2_row.view()));
             });
 
         result
