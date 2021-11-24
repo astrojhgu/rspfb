@@ -22,8 +22,8 @@ use itertools_num::linspace;
 
 fn main() -> std::io::Result<()> {
     let nch = 32;
-    let c = coeff::<f64>(nch, 32, 0.4);
-    let nphi = 4096;
+    let c = coeff::<f64>(nch, 15, 1.1);
+    let nphi = 8192;
 
     let mut specs = Array2::zeros((nch, nphi));
 

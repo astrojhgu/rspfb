@@ -7,6 +7,7 @@ pub mod utils;
 //pub mod npr_complex;
 //pub mod cspfb_even;
 //pub mod cspfb_odd;
+pub mod batch_filter;
 pub mod cfg;
 pub mod csp_pfb;
 pub mod cspfb;
