@@ -8,7 +8,7 @@ use num_traits::{Float, FloatConst, NumAssign};
 use rustfft::{FftNum, FftPlanner};
 use std::{
     iter::Sum,
-    ops::{Add, Mul},
+    ops::{Mul},
 };
 
 /// Pfb for channelizing
@@ -31,7 +31,6 @@ where
     T: Copy
         + Float
         + FloatConst
-        + std::ops::MulAssign<T>
         + ScalarOperand
         + NumAssign
         + std::fmt::Debug
@@ -39,11 +38,8 @@ where
         + Send
         + FftNum,
     R: Copy
-        + Add<R, Output = R>
-        + Mul<R, Output = R>
         + Mul<T, Output = R>
         + Default
-        + std::ops::MulAssign<R>
         + ScalarOperand
         + NumAssign
         + std::fmt::Debug
@@ -51,15 +47,10 @@ where
         + Sync
         + Send,
     Complex<T>: Copy
-        + Add<Complex<T>, Output = Complex<T>>
-        + Mul<T, Output = Complex<T>>
-        + Mul<R, Output = Complex<T>>
-        + Mul<Complex<T>, Output = Complex<T>>
         + std::convert::From<R>
         + Sum
         + Default
         + ScalarOperand
-        + Sync,
 {
     /// constructor
     /// * `nch_total` - total number of channels, including even and odd, pos and neg channels
