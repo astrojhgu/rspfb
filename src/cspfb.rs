@@ -93,8 +93,6 @@ where
                 .take(nch * batch)
                 .cloned(),
         );
-
-        //self.buffer = ArrayView1::from(&input_signal[nch * batch - self.buffer.len()..]).to_vec();
         self.buffer
             .reserve(input_signal.len() - nch * batch + self.buffer.len());
         unsafe {
@@ -107,39 +105,17 @@ where
             .zip(&input_signal[input_signal.len() - l..])
             .for_each(|(a, &b)| *a = b);
 
-        /*
-        let x1 = signal.into_shape((batch, nch)).unwrap();
-        let x1 = x1.t();
-        let x1 = x1.as_standard_layout();
-        let mut x1 = x1.map(|&x| Complex::<T>::from(x));
-        //let mut x1=transpose_par_map(signal.into_shape((m,n)).unwrap(), |x|Complex::<T>::from(*x) );
-        let _im = Complex::new(T::zero(), T::one());
-
-        self.filters
-            .iter_mut()
-            .zip(x1.axis_iter_mut(Axis(0)))
-            .enumerate()
-            .for_each(|(_i, (ft, mut x1_row))| {
-                let x = Array1::from(ft.filter(x1_row.as_slice().unwrap()));
-                x1_row.assign(&x);
-            });
-        */
 
         let x1=self.batch_filter.filter(signal.view());
         let mut result = unsafe { Array2::<Complex<T>>::uninit((nch, batch)).assume_init() };
-        //let mut fft_plan=CFFT::<T>::with_len(x1.shape()[0]);
         let mut planner = FftPlanner::new();
         let fft = planner.plan_fft_forward(nch);
         result
             .axis_iter_mut(Axis(1))
             .zip(x1.axis_iter(Axis(1)))
             .for_each(|(mut r_col, x1_col)| {
-                //let fx1 = ifft0(x1_col.to_owned().as_slice().unwrap());
                 let mut fx1 = x1_col.to_owned();
                 fft.process(fx1.as_slice_mut().unwrap());
-                //let fx2 = ifft0(x2_col.to_owned().as_slice().unwrap());
-
-                //let fx1 = fftwifft::<T>(x1_col.to_owned().as_slice_mut().unwrap());
                 r_col.slice_mut(s![..]).assign(&ArrayView1::from(&fx1));
             });
 
