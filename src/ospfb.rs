@@ -95,6 +95,36 @@ where
         }
     }
 
+    pub fn buffer_input(&mut self, input_signal: &[R])->Array1<R>{
+        let nch_each = self.filter_even.filters.len();
+        
+        let nch_total = nch_each * 2;
+
+        let batch = (self.buffer.len() + input_signal.len()) / nch_each;
+        
+        let signal = Array1::from_iter(
+            self.buffer
+                .iter()
+                .chain(input_signal)
+                .take(nch_each * batch)
+                .cloned(),
+        );
+        //self.buffer =
+        //    ArrayView1::from(&input_signal[nch_each * batch - self.buffer.len()..]).to_vec();
+        self.buffer
+            .reserve(input_signal.len() - nch_each * batch + self.buffer.len());
+        unsafe {
+            self.buffer
+                .set_len(input_signal.len() - nch_each * batch + self.buffer.len())
+        };
+        let l = self.buffer.len();
+        self.buffer
+            .iter_mut()
+            .zip(&input_signal[input_signal.len() - l..])
+            .for_each(|(a, &b)| *a = b);
+        signal
+    }
+
     /// performing the channelizing
     /// * `input_signal` - input 1-d time series of the input signal
     /// * return value - channelized signal, with `nch_total` rows
@@ -125,28 +155,7 @@ where
 
         let batch = (self.buffer.len() + input_signal.len()) / nch_each;
         
-        let signal = Array1::from_iter(
-            self.buffer
-                .iter()
-                .chain(input_signal)
-                .take(nch_each * batch)
-                .cloned(),
-        );
-        //self.buffer =
-        //    ArrayView1::from(&input_signal[nch_each * batch - self.buffer.len()..]).to_vec();
-        self.buffer
-            .reserve(input_signal.len() - nch_each * batch + self.buffer.len());
-        unsafe {
-            self.buffer
-                .set_len(input_signal.len() - nch_each * batch + self.buffer.len())
-        };
-        let l = self.buffer.len();
-        self.buffer
-            .iter_mut()
-            .zip(&input_signal[input_signal.len() - l..])
-            .for_each(|(a, &b)| *a = b);
-
-
+        let signal=self.buffer_input(input_signal);
         let signal_shifted=Array1::from_iter(signal.iter().map(|&x|{Complex::<T>::from(x)*self.shifter.get()}));
 
         let mut x1=self.filter_even.filter(signal.view());
@@ -180,6 +189,41 @@ where
 
     /// The parallel version of [`Self::analyze`]
     pub fn analyze_par(&mut self, input_signal: &[R]) -> Array2<Complex<T>> {
-        self.analyze(input_signal)
+        let nch_each = self.filter_even.filters.len();
+        
+        let nch_total = nch_each * 2;
+
+        let batch = (self.buffer.len() + input_signal.len()) / nch_each;
+        
+        let signal=self.buffer_input(input_signal);
+        let signal_shifted=Array1::from_iter(signal.iter().map(|&x|{Complex::<T>::from(x)*self.shifter.get()}));
+
+        let mut x1=self.filter_even.filter_par(signal.view());
+        let mut x2=self.filter_odd.filter_par::<Complex<T>>(signal_shifted.view());
+
+        
+        let mut result = unsafe { Array2::<Complex<T>>::uninit((nch_total, batch)).assume_init() };
+        
+        
+        //let mut fft_plan=CFFT::<T>::with_len(x1.shape()[0]);
+        let mut planner = FftPlanner::new();
+        let fft = planner.plan_fft_forward(nch_each);
+        result
+            .axis_iter_mut(Axis(1)).into_par_iter()
+            .zip(x1.axis_iter_mut(Axis(0)).into_par_iter())
+            .for_each(|(mut r_col, mut x1_row)| {
+                fft.process(x1_row.as_slice_mut().unwrap());
+                r_col.slice_mut(s![0..;2]).assign(&ArrayView1::from(&x1_row.view()));
+            });
+
+        result
+            .axis_iter_mut(Axis(1)).into_par_iter()
+            .zip(x2.axis_iter_mut(Axis(0)).into_par_iter())
+            .for_each(|(mut r_col, mut x2_row)| {
+                fft.process(x2_row.as_slice_mut().unwrap());
+                r_col.slice_mut(s![1..;2]).assign(&ArrayView1::from(&x2_row.view()));
+            });
+
+        result
     }
 }

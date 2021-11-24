@@ -77,13 +77,9 @@ where
         self.batch_filter.filters.len()
     }
 
-    /// Channelize input signal
-    /// * `input_signal` - a 1-d slice containing time domain input signal
-    /// * return value - channelized data, with `nch` rows
-    pub fn analyze(&mut self, input_signal: &[R]) -> Array2<Complex<T>> {
+    pub fn buffer_input(&mut self, input_signal:&[R])->Array1<R>{
         let nch = self.batch_filter.filters.len();
         let batch = (self.buffer.len() + input_signal.len()) / nch;
-
         let signal = Array1::from_iter(
             self.buffer
                 .iter()
@@ -103,6 +99,18 @@ where
             .zip(&input_signal[input_signal.len() - l..])
             .for_each(|(a, &b)| *a = b);
 
+        signal
+    }
+
+    /// Channelize input signal
+    /// * `input_signal` - a 1-d slice containing time domain input signal
+    /// * return value - channelized data, with `nch` rows
+    pub fn analyze(&mut self, input_signal: &[R]) -> Array2<Complex<T>> {
+        let nch = self.batch_filter.filters.len();
+        let batch = (self.buffer.len() + input_signal.len()) / nch;
+
+        let signal=self.buffer_input(input_signal);
+
 
         let mut x1=self.batch_filter.filter(signal.view());
         let mut result = unsafe { Array2::<Complex<T>>::uninit((nch, batch)).assume_init() };
@@ -117,21 +125,30 @@ where
             })
 
         ;
-        /*
-        result
-            .axis_iter_mut(Axis(1))
-            .zip(x1.axis_iter(Axis(1)))
-            .for_each(|(mut r_col, x1_col)| {
-                let mut fx1 = x1_col.to_owned();
-                fft.process(fx1.as_slice_mut().unwrap());
-                r_col.slice_mut(s![..]).assign(&ArrayView1::from(&fx1));
-            });
-        */
         result
     }
 
     /// A parallel version of [`Self::analyze`]
     pub fn analyze_par(&mut self, input_signal: &[R]) -> Array2<Complex<T>> {
-        self.analyze(input_signal)
+        let nch = self.batch_filter.filters.len();
+        let batch = (self.buffer.len() + input_signal.len()) / nch;
+
+        let signal=self.buffer_input(input_signal);
+
+
+        let mut x1=self.batch_filter.filter_par(signal.view());
+        let mut result = unsafe { Array2::<Complex<T>>::uninit((nch, batch)).assume_init() };
+        let mut planner = FftPlanner::new();
+        let fft = planner.plan_fft_forward(nch);
+
+        result.axis_iter_mut(Axis(1)).into_par_iter()
+            .zip(x1.axis_iter_mut(Axis(0)).into_par_iter())
+            .for_each(|(mut r_col, mut x1_row)|{
+                fft.process(x1_row.as_slice_mut().unwrap());
+                r_col.assign(&x1_row.view());
+            })
+
+        ;
+        result
     }
 }

@@ -36,8 +36,8 @@ pub struct BatchFilter<T> {
 
 impl<T> BatchFilter<T>
 where
-    T: Copy,
-    Complex<T>: Copy + Add<Complex<T>, Output = Complex<T>> + Mul<T, Output = Complex<T>> + Sum + Default,
+    T: Copy + Sync + Send,
+    Complex<T>: Copy + Add<Complex<T>, Output = Complex<T>> + Mul<T, Output = Complex<T>> + Sum + Default + Send + Sync,
 {
     /// construct a FIR with its coefficients    
     pub fn new(coeff: ArrayView2<T>) -> Self {
@@ -71,7 +71,8 @@ where
         + std::convert::From<R>
         + Sum
         + Default
-        + Sync,
+        + Sync
+        + Send,
     {
         let nch=self.filters.len();
         let batch=signal.len()/nch;
@@ -84,6 +85,43 @@ where
         self.filters
             .iter_mut()
             .zip(x1.axis_iter_mut(Axis(0)))
+            .enumerate()
+            .for_each(|(_i, (ft, mut x1_row))| {
+                let x = Array1::from(ft.filter(x1_row.as_slice().unwrap()));
+                x1_row.assign(&x);
+            });
+        x1.t().as_standard_layout().to_owned()
+        //x1
+    }
+
+    pub fn filter_par<R>(&mut self, signal: ArrayView1<R>) -> Array2<Complex<T>> 
+    where R: Copy
+        + Add<R, Output = R>
+        + Mul<R, Output = R>
+        + std::ops::MulAssign<R>
+        + std::fmt::Debug
+        + Sync
+        + Send,
+        Complex<T>:
+        Mul<R, Output = Complex<T>>
+        + Mul<Complex<T>, Output = Complex<T>>
+        + std::convert::From<R>
+        + Sum
+        + Default
+        + Sync
+        + Send,
+    {
+        let nch=self.filters.len();
+        let batch=signal.len()/nch;
+        /*
+        let x1 = signal.into_shape((batch, nch)).unwrap();
+        let x1 = x1.t();
+        let x1 = x1.as_standard_layout();
+        */
+        let mut x1 = signal.into_shape((batch, nch)).unwrap().t().as_standard_layout().map(|&x| Complex::<T>::from(x));
+        self.filters
+            .par_iter_mut()
+            .zip(x1.axis_iter_mut(Axis(0)).into_par_iter())
             .enumerate()
             .for_each(|(_i, (ft, mut x1_row))| {
                 let x = Array1::from(ft.filter(x1_row.as_slice().unwrap()));
