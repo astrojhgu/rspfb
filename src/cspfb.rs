@@ -60,9 +60,7 @@ where
     pub fn new(nch: usize, coeff: ArrayView1<T>) -> Analyzer<R, T> {
         let tap = coeff.len() / nch;
         assert!(nch * tap == coeff.len());
-        let coeff = coeff.into_shape((tap, nch)).unwrap();
-        let coeff = coeff.t();
-        let coeff = coeff.as_standard_layout();
+        let coeff=coeff.into_shape((tap, nch)).unwrap().t().as_standard_layout().to_owned();
         let coeff = coeff.slice(s![..;-1,..]);
 
         let batch_filter=BatchFilter::new(coeff);

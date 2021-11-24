@@ -79,9 +79,7 @@ where
         let nch_each = nch_total / 2;
         let tap = coeff.len() / nch_each;
         assert!(nch_each * tap == coeff.len());
-        let coeff = coeff.into_shape((tap, nch_each)).unwrap();
-        let coeff = coeff.t();
-        let coeff = coeff.as_standard_layout();
+        let coeff=coeff.into_shape((tap, nch_each)).unwrap().t().as_standard_layout().to_owned();
         let coeff = coeff.slice(s![..;-1,..]);
         let filter_even=BatchFilter::new(coeff);
         let filter_odd=BatchFilter::new(coeff);
