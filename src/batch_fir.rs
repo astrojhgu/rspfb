@@ -75,10 +75,12 @@ where
     {
         let nch=self.filters.len();
         let batch=signal.len()/nch;
+        /*
         let x1 = signal.into_shape((batch, nch)).unwrap();
         let x1 = x1.t();
         let x1 = x1.as_standard_layout();
-        let mut x1 = x1.map(|&x| Complex::<T>::from(x));
+        */
+        let mut x1 = signal.into_shape((batch, nch)).unwrap().t().as_standard_layout().map(|&x| Complex::<T>::from(x));
         self.filters
             .iter_mut()
             .zip(x1.axis_iter_mut(Axis(0)))
