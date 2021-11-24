@@ -87,7 +87,7 @@ where
                 let x = Array1::from(ft.filter(x1_row.as_slice().unwrap()));
                 x1_row.assign(&x);
             });
-        //x1.t().as_standard_layout().to_owned()
-        x1
+        x1.t().as_standard_layout().to_owned()
+        //x1
     }
 }

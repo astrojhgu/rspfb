@@ -106,10 +106,20 @@ where
             .for_each(|(a, &b)| *a = b);
 
 
-        let x1=self.batch_filter.filter(signal.view());
+        let mut x1=self.batch_filter.filter(signal.view());
         let mut result = unsafe { Array2::<Complex<T>>::uninit((nch, batch)).assume_init() };
         let mut planner = FftPlanner::new();
         let fft = planner.plan_fft_forward(nch);
+
+        result.axis_iter_mut(Axis(1))
+            .zip(x1.axis_iter_mut(Axis(0)))
+            .for_each(|(mut r_col, mut x1_row)|{
+                fft.process(x1_row.as_slice_mut().unwrap());
+                r_col.assign(&x1_row.view());
+            })
+
+        ;
+        /*
         result
             .axis_iter_mut(Axis(1))
             .zip(x1.axis_iter(Axis(1)))
@@ -118,7 +128,7 @@ where
                 fft.process(fx1.as_slice_mut().unwrap());
                 r_col.slice_mut(s![..]).assign(&ArrayView1::from(&fx1));
             });
-
+        */
         result
     }
 
