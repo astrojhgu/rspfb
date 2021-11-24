@@ -7,14 +7,14 @@ use std::{
 
 /// FIR filter
 #[derive(Clone)]
-pub struct Filter<T, U> {
+pub struct Filter<U, T> {
     /// reversed coefficients, i.e., impulse respone
     pub coeff_rev: Vec<T>,
     /// filter state
     pub initial_state: Vec<U>,
 }
 
-impl<T, U> Filter<T, U>
+impl<U, T> Filter<U, T>
 where
     T: Copy,
     U: Copy + Add<U, Output = U> + Mul<T, Output = U> + Sum + Default,

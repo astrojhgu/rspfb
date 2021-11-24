@@ -14,10 +14,10 @@ use std::{
 /// Pfb for channelizing
 pub struct Analyzer<R, T> {
     /// filters for even channels
-    filter_even: BatchFilter<T>,
+    filter_even: BatchFilter<R, T>,
 
     /// filters for odd channels
-    filter_odd: BatchFilter<T>,
+    filter_odd: BatchFilter<Complex<T>, T>,
 
     /// a buffer, ensurning that the input signal length need not to be nch*tap. The remaining elements will be stored and be concated with the input next time.
     buffer: Vec<R>,
@@ -41,10 +41,13 @@ where
     R: Copy
         + Add<R, Output = R>
         + Mul<R, Output = R>
+        + Mul<T, Output = R>
+        + Default
         + std::ops::MulAssign<R>
         + ScalarOperand
         + NumAssign
         + std::fmt::Debug
+        + Sum
         + Sync
         + Send,
     Complex<T>: Copy
@@ -87,7 +90,7 @@ where
             .to_owned();
         let coeff = coeff.slice(s![..;-1,..]);
         let filter_even = BatchFilter::new(coeff);
-        let filter_odd = BatchFilter::new(coeff);
+        let filter_odd = BatchFilter::<Complex<T>, T>::new(coeff);
 
         let shifter = HalfChShifter::<T>::new(nch_each, false);
 
@@ -165,7 +168,7 @@ where
         );
 
         let mut x1 = self.filter_even.filter(signal.view());
-        let mut x2 = self.filter_odd.filter::<Complex<T>>(signal_shifted.view());
+        let mut x2 = self.filter_odd.filter(signal_shifted.view());
 
         let mut result = unsafe { Array2::<Complex<T>>::uninit((nch_total, batch)).assume_init() };
 
@@ -178,7 +181,7 @@ where
             .for_each(|(mut r_col, mut x1_row)| {
                 fft.process(x1_row.as_slice_mut().unwrap());
                 r_col
-                    .slice_mut(s![0..;2])
+                    .slice_mut(s![0_usize..;2])
                     .assign(&ArrayView1::from(&x1_row.view()));
             });
 
@@ -188,7 +191,7 @@ where
             .for_each(|(mut r_col, mut x2_row)| {
                 fft.process(x2_row.as_slice_mut().unwrap());
                 r_col
-                    .slice_mut(s![1..;2])
+                    .slice_mut(s![1_usize..;2])
                     .assign(&ArrayView1::from(&x2_row.view()));
             });
 
@@ -213,7 +216,7 @@ where
         let mut x1 = self.filter_even.filter_par(signal.view());
         let mut x2 = self
             .filter_odd
-            .filter_par::<Complex<T>>(signal_shifted.view());
+            .filter_par(signal_shifted.view());
 
         let mut result = unsafe { Array2::<Complex<T>>::uninit((nch_total, batch)).assume_init() };
 
@@ -227,7 +230,7 @@ where
             .for_each(|(mut r_col, mut x1_row)| {
                 fft.process(x1_row.as_slice_mut().unwrap());
                 r_col
-                    .slice_mut(s![0..;2])
+                    .slice_mut(s![0_usize..;2])
                     .assign(&ArrayView1::from(&x1_row.view()));
             });
 
@@ -238,7 +241,7 @@ where
             .for_each(|(mut r_col, mut x2_row)| {
                 fft.process(x2_row.as_slice_mut().unwrap());
                 r_col
-                    .slice_mut(s![1..;2])
+                    .slice_mut(s![1_usize..;2])
                     .assign(&ArrayView1::from(&x2_row.view()));
             });
 

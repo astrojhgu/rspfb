@@ -3,6 +3,7 @@
 use std::{
     iter::Sum,
     ops::{Add, Mul},
+    marker::PhantomData,
 };
 
 use num_complex::Complex;
@@ -13,21 +14,17 @@ use crate::filter;
 
 /// FIR filter
 #[derive(Clone)]
-pub struct BatchFilter<T> {
+pub struct BatchFilter<U, T> {
     /// reversed coefficients, i.e., impulse respone
-    pub filters: Vec<filter::Filter<T, Complex<T>>>,
+    pub filters: Vec<filter::Filter<U, T>>,
+    pub u: PhantomData<U>
 }
 
-impl<T> BatchFilter<T>
+impl<U, T> BatchFilter<U, T>
 where
-    T: Copy + Sync + Send,
-    Complex<T>: Copy
-        + Add<Complex<T>, Output = Complex<T>>
-        + Mul<T, Output = Complex<T>>
-        + Sum
-        + Default
-        + Send
-        + Sync,
+    T: Copy + Sync+Send,
+    U: Copy + Add<U, Output = U> + Mul<T, Output = U> + Sum + Default+Sync+Send,
+    Complex<T>:std::convert::From<U>
 {
     /// construct a FIR with its coefficients    
     pub fn new(coeff: ArrayView2<T>) -> Self {
@@ -35,31 +32,16 @@ where
         //let tap = coeff.shape()[0];
         let nch = coeff.shape()[0];
         let filters: Vec<_> = (0..nch)
-            .map(|i| filter::Filter::<T, Complex<T>>::new(coeff.slice(s![i, ..]).to_vec()))
+            .map(|i| filter::Filter::<U, T>::new(coeff.slice(s![i, ..]).to_vec()))
             .collect();
 
-        BatchFilter { filters }
+        BatchFilter { filters, u: PhantomData{} }
     }
 
     /// filter a time series signal
     /// return the filtered signal
 
-    pub fn filter<R>(&mut self, signal: ArrayView1<R>) -> Array2<Complex<T>>
-    where
-        R: Copy
-            + Add<R, Output = R>
-            + Mul<R, Output = R>
-            + std::ops::MulAssign<R>
-            + std::fmt::Debug
-            + Sync
-            + Send,
-        Complex<T>: Mul<R, Output = Complex<T>>
-            + Mul<Complex<T>, Output = Complex<T>>
-            + std::convert::From<R>
-            + Sum
-            + Default
-            + Sync
-            + Send,
+    pub fn filter(&mut self, signal: ArrayView1<U>) -> Array2<Complex<T>>
     {
         let nch = self.filters.len();
         let batch = signal.len() / nch;
@@ -68,12 +50,12 @@ where
         let x1 = x1.t();
         let x1 = x1.as_standard_layout();
         */
-        let mut x1 = signal
+        let mut x1:Array2<U> = signal
             .into_shape((batch, nch))
             .unwrap()
             .t()
             .as_standard_layout()
-            .map(|&x| Complex::<T>::from(x));
+            .to_owned();
         self.filters
             .iter_mut()
             .zip(x1.axis_iter_mut(Axis(0)))
@@ -82,26 +64,11 @@ where
                 let x = Array1::from(ft.filter(x1_row.as_slice().unwrap()));
                 x1_row.assign(&x);
             });
-        x1.t().as_standard_layout().to_owned()
+        x1.t().as_standard_layout().map(|&x|Complex::<T>::from(x))
         //x1
     }
 
-    pub fn filter_par<R>(&mut self, signal: ArrayView1<R>) -> Array2<Complex<T>>
-    where
-        R: Copy
-            + Add<R, Output = R>
-            + Mul<R, Output = R>
-            + std::ops::MulAssign<R>
-            + std::fmt::Debug
-            + Sync
-            + Send,
-        Complex<T>: Mul<R, Output = Complex<T>>
-            + Mul<Complex<T>, Output = Complex<T>>
-            + std::convert::From<R>
-            + Sum
-            + Default
-            + Sync
-            + Send,
+    pub fn filter_par(&mut self, signal: ArrayView1<U>) -> Array2<Complex<T>>
     {
         let nch = self.filters.len();
         let batch = signal.len() / nch;
@@ -110,12 +77,12 @@ where
         let x1 = x1.t();
         let x1 = x1.as_standard_layout();
         */
-        let mut x1 = signal
+        let mut x1:Array2<U> = signal
             .into_shape((batch, nch))
             .unwrap()
             .t()
             .as_standard_layout()
-            .map(|&x| Complex::<T>::from(x));
+            .to_owned();
         self.filters
             .par_iter_mut()
             .zip(x1.axis_iter_mut(Axis(0)).into_par_iter())
@@ -124,7 +91,6 @@ where
                 let x = Array1::from(ft.filter(x1_row.as_slice().unwrap()));
                 x1_row.assign(&x);
             });
-        x1.t().as_standard_layout().to_owned()
-        //x1
+        x1.t().as_standard_layout().map(|&x|Complex::<T>::from(x))
     }
 }

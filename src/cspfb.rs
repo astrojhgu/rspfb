@@ -16,7 +16,7 @@ use std::{
 #[derive(Clone)]
 pub struct Analyzer<R, T> {
     /// A vec of filters, one for each branch
-    batch_filter: BatchFilter<T>,
+    batch_filter: BatchFilter<R, T>,
     /// a buffer, ensurning that the input signal length need not to be nch*tap. The remaining elements will be stored and be concated with the input next time.
     buffer: Vec<R>,
 }
@@ -36,10 +36,14 @@ where
     R: Copy
         + Add<R, Output = R>
         + Mul<R, Output = R>
+        + Mul<T, Output = R>
         + std::ops::MulAssign<R>
+        + std::ops::Mul<T>
         + ScalarOperand
         + NumAssign
         + std::fmt::Debug
+        + Sum
+        + Default
         + Sync
         + Send,
     Complex<T>: Copy
