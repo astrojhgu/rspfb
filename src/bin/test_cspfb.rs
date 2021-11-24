@@ -23,7 +23,7 @@ use itertools_num::linspace;
 fn main() -> std::io::Result<()> {
     let nch = 32;
     let c = coeff::<f64>(nch, 32, 0.4);
-    let nphi = 1024;
+    let nphi = 8192;
 
     let mut specs = Array2::zeros((nch, nphi));
 
@@ -42,6 +42,6 @@ fn main() -> std::io::Result<()> {
     }
 
     let mut npz = NpzWriter::new(std::fs::File::create("out.npz").unwrap());
-    let _ = npz.add_array("coarse", &specs).unwrap();
+    let _ = npz.add_array("channelized", &specs).unwrap();
     Ok(())
 }
