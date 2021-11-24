@@ -43,7 +43,7 @@ where
     pub fn new(coeff: ArrayView2<T>) -> Self {
         //coeff.reverse();
         //let tap = coeff.shape()[0];
-        let nch=coeff.shape()[1];
+        let nch=coeff.shape()[0];
         let filters: Vec<_> = (0..nch)
             .map(|i| filter::Filter::<T, Complex<T>>::new(coeff.slice(s![i, ..]).to_vec()))
             .collect();

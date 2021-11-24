@@ -1,7 +1,7 @@
 //! oversampling poly phase filter bank
 
 #![allow(clippy::uninit_vec)]
-use crate::{filter::Filter, oscillator::HalfChShifter, utils::transpose_par_map};
+use crate::{batch_fir::BatchFilter, oscillator::HalfChShifter, utils::transpose_par_map};
 use ndarray::{parallel::prelude::*, s, Array1, Array2, ArrayView1, Axis, ScalarOperand};
 use num_complex::Complex;
 use num_traits::{Float, FloatConst, NumAssign};
@@ -14,10 +14,10 @@ use std::{
 /// Pfb for channelizing
 pub struct Analyzer<R, T> {
     /// filters for even channels
-    filters_even: Vec<Filter<T, Complex<T>>>,
+    filter_even: BatchFilter<T>,
 
     /// filters for odd channels
-    filters_odd: Vec<Filter<T, Complex<T>>>,
+    filter_odd: BatchFilter<T>,
 
     /// a buffer, ensurning that the input signal length need not to be nch*tap. The remaining elements will be stored and be concated with the input next time.
     buffer: Vec<R>,
@@ -83,20 +83,15 @@ where
         let coeff = coeff.t();
         let coeff = coeff.as_standard_layout();
         let coeff = coeff.slice(s![..;-1,..]);
+        let filter_even=BatchFilter::new(coeff);
+        let filter_odd=BatchFilter::new(coeff);
 
-        let filters_even: Vec<_> = (0..nch_each)
-            .map(|i| Filter::<T, Complex<T>>::new(coeff.slice(s![i, ..]).to_vec()))
-            .collect();
-
-        let filters_odd: Vec<_> = (0..nch_each)
-            .map(|i| Filter::<T, Complex<T>>::new(coeff.slice(s![i, ..]).to_vec()))
-            .collect();
-
+        
         let shifter = HalfChShifter::<T>::new(nch_each, false);
 
         Analyzer {
-            filters_even,
-            filters_odd,
+            filter_even,
+            filter_odd,
             buffer: Vec::<R>::new(),
             shifter,
         }
@@ -126,22 +121,12 @@ where
     /// assert_eq!(channelized_signal.nrows(), nch);
     /// ```
     pub fn analyze(&mut self, input_signal: &[R]) -> Array2<Complex<T>> {
-        let nch_each = self.filters_even.len();
+        let nch_each = self.filter_even.filters.len();
+        
         let nch_total = nch_each * 2;
 
         let batch = (self.buffer.len() + input_signal.len()) / nch_each;
-        /*
-        let mut signal = unsafe { Array1::<R>::uninit(batch * nch_each).assume_init() };
-        signal
-            .slice_mut(s![..self.buffer.len()])
-            .assign(&ArrayView1::from(&self.buffer[..]));
-        signal
-            .slice_mut(s![self.buffer.len()..])
-            .assign(&ArrayView1::from(
-                &input_signal[..(nch_each * batch - self.buffer.len())],
-            ));
-        */
-
+        
         let signal = Array1::from_iter(
             self.buffer
                 .iter()
@@ -163,55 +148,33 @@ where
             .zip(&input_signal[input_signal.len() - l..])
             .for_each(|(a, &b)| *a = b);
 
-        let x1 = signal.into_shape((batch, nch_each)).unwrap();
-        let x1 = x1.t();
-        let x1 = x1.as_standard_layout();
-        let mut x1 = x1.map(|&x| Complex::<T>::from(x));
-        let mut x2 = x1.clone();
-        for j in 0..x2.ncols() {
-            for i in 0..x2.nrows() {
-                x2[(i, j)] *= self.shifter.get();
-            }
-        }
 
-        self.filters_even
-            .iter_mut()
-            .zip(x1.axis_iter_mut(Axis(0)))
-            .enumerate()
-            .for_each(|(_i, (ft, mut x1_row))| {
-                let x = Array1::from(ft.filter(x1_row.as_slice().unwrap()));
-                x1_row.assign(&x);
-            });
+        let signal_shifted=Array1::from_iter(signal.iter().map(|&x|{Complex::<T>::from(x)*self.shifter.get()}));
 
-        self.filters_odd
-            .iter_mut()
-            .zip(x2.axis_iter_mut(Axis(0)))
-            .enumerate()
-            .for_each(|(_i, (ft, mut x2_row))| {
-                let x = Array1::from(ft.filter(x2_row.as_slice().unwrap()));
-                x2_row.assign(&x);
-            });
+        let mut x1=self.filter_even.filter(signal.view());
+        let mut x2=self.filter_odd.filter::<Complex<T>>(signal_shifted.view());
 
+        
         let mut result = unsafe { Array2::<Complex<T>>::uninit((nch_total, batch)).assume_init() };
+        
+        
         //let mut fft_plan=CFFT::<T>::with_len(x1.shape()[0]);
         let mut planner = FftPlanner::new();
         let fft = planner.plan_fft_forward(nch_each);
         result
             .axis_iter_mut(Axis(1))
-            .zip(x1.axis_iter(Axis(1)))
-            .for_each(|(mut r_col, x1_col)| {
-                let mut fx1 = x1_col.to_owned();
-                fft.process(fx1.as_slice_mut().unwrap());
-                r_col.slice_mut(s![0..;2]).assign(&ArrayView1::from(&fx1));
+            .zip(x1.axis_iter_mut(Axis(0)))
+            .for_each(|(mut r_col, mut x1_row)| {
+                fft.process(x1_row.as_slice_mut().unwrap());
+                r_col.slice_mut(s![0..;2]).assign(&ArrayView1::from(&x1_row.view()));
             });
 
         result
             .axis_iter_mut(Axis(1))
-            .zip(x2.axis_iter(Axis(1)))
-            .for_each(|(mut r_col, x2_col)| {
-                let mut fx2 = x2_col.to_owned();
-                fft.process(fx2.as_slice_mut().unwrap());
-                r_col.slice_mut(s![1..;2]).assign(&ArrayView1::from(&fx2));
+            .zip(x2.axis_iter_mut(Axis(0)))
+            .for_each(|(mut r_col, mut x2_row)| {
+                fft.process(x2_row.as_slice_mut().unwrap());
+                r_col.slice_mut(s![1..;2]).assign(&ArrayView1::from(&x2_row.view()));
             });
 
         result
@@ -219,96 +182,6 @@ where
 
     /// The parallel version of [`Self::analyze`]
     pub fn analyze_par(&mut self, input_signal: &[R]) -> Array2<Complex<T>> {
-        let nch_each = self.filters_even.len();
-        let nch_total = nch_each * 2;
-
-        let batch = (self.buffer.len() + input_signal.len()) / nch_each;
-        /*
-        let mut signal = unsafe { Array1::<R>::uninit(batch * nch_each).assume_init() };
-        signal
-            .slice_mut(s![..self.buffer.len()])
-            .assign(&ArrayView1::from(&self.buffer[..]));
-        signal
-            .slice_mut(s![self.buffer.len()..])
-            .assign(&ArrayView1::from(
-                &input_signal[..(nch_each * batch - self.buffer.len())],
-            ));
-            */
-        let signal = Array1::from_iter(
-            self.buffer
-                .iter()
-                .chain(input_signal)
-                .take(nch_each * batch)
-                .cloned(),
-        );
-        //self.buffer =
-        //    ArrayView1::from(&input_signal[nch_each * batch - self.buffer.len()..]).to_vec();
-        self.buffer
-            .reserve(input_signal.len() - nch_each * batch + self.buffer.len());
-        unsafe {
-            self.buffer
-                .set_len(input_signal.len() - nch_each * batch + self.buffer.len())
-        };
-        let l = self.buffer.len();
-        self.buffer
-            .iter_mut()
-            .zip(&input_signal[input_signal.len() - l..])
-            .for_each(|(a, &b)| *a = b);
-
-        let mut x1 =
-            transpose_par_map(signal.into_shape((batch, nch_each)).unwrap().view(), |&x| {
-                Complex::<T>::from(x)
-            });
-
-        let mut x2 = x1.clone();
-        for j in 0..x2.ncols() {
-            for i in 0..x2.nrows() {
-                x2[(i, j)] *= self.shifter.get();
-            }
-        }
-
-        self.filters_even
-            .par_iter_mut()
-            .zip(x1.axis_iter_mut(Axis(0)).into_par_iter())
-            .enumerate()
-            .for_each(|(_i, (ft, mut x1_row))| {
-                let x = Array1::from(ft.filter(x1_row.as_slice().unwrap()));
-                x1_row.assign(&x);
-            });
-
-        self.filters_odd
-            .par_iter_mut()
-            .zip(x2.axis_iter_mut(Axis(0)).into_par_iter())
-            .enumerate()
-            .for_each(|(_i, (ft, mut x2_row))| {
-                let x = Array1::from(ft.filter(x2_row.as_slice().unwrap()));
-                x2_row.assign(&x);
-            });
-
-        let mut result = unsafe { Array2::<Complex<T>>::uninit((nch_total, batch)).assume_init() };
-        //let mut fft_plan=CFFT::<T>::with_len(x1.shape()[0]);
-        let mut planner = FftPlanner::new();
-        let fft = planner.plan_fft_forward(nch_each);
-        result
-            .axis_iter_mut(Axis(1))
-            .into_par_iter()
-            .zip(x1.axis_iter(Axis(1)).into_par_iter())
-            .for_each(|(mut r_col, x1_col)| {
-                let mut fx1 = x1_col.to_owned();
-                fft.process(fx1.as_slice_mut().unwrap());
-                r_col.slice_mut(s![0..;2]).assign(&ArrayView1::from(&fx1));
-            });
-
-        result
-            .axis_iter_mut(Axis(1))
-            .into_par_iter()
-            .zip(x2.axis_iter(Axis(1)).into_par_iter())
-            .for_each(|(mut r_col, x2_col)| {
-                let mut fx2 = x2_col.to_owned();
-                fft.process(fx2.as_slice_mut().unwrap());
-                r_col.slice_mut(s![1..;2]).assign(&ArrayView1::from(&fx2));
-            });
-
-        result
+        self.analyze(input_signal)
     }
 }
