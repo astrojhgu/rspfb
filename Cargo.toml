@@ -26,3 +26,6 @@ authors = ['GU Junhua <jhgu@nao.cas.cn>']
 edition = '2021'
 name = 'rspfb'
 version = '0.1.0'
+
+[profile.release]
+debug = true

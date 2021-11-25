@@ -131,9 +131,8 @@ pub fn main() {
 
     fine_spec
         .axis_iter_mut(Axis(0))
-        .into_par_iter()
-        .zip_eq(coarse_spec.axis_iter_mut(Axis(0)).into_par_iter())
-        .zip_eq(freqs.axis_iter(Axis(0)).into_par_iter())
+        .zip(coarse_spec.axis_iter_mut(Axis(0)))
+        .zip(freqs.axis_iter(Axis(0)))
         .for_each(|((mut fine_resp, mut coarse_resp), freq)| {
             let freq = freq[()];
             let mut coarse_pfb = ospfb::Analyzer::<Complex<f64>, f64>::new(

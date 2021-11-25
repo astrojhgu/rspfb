@@ -61,7 +61,8 @@ where
     /// Further channelize the input coarse channels to finer channels
     /// * `x` - input coarse channels, 2D array view, with `number of coarse channels` rows.
     /// * return value - a 2D array with fine channel data, with `number of fine channels` rows.
-    pub fn analyze(&mut self, mut x: ArrayViewMut2<Complex<T>>) -> Array2<Complex<T>> {
+    pub fn analyze(&mut self, x: ArrayView2<Complex<T>>) -> Array2<Complex<T>> {
+        let mut x = x.select(Axis(0), &self.coarse_ch_selected);
         x.axis_iter_mut(Axis(1))
             .enumerate()
             .for_each(|(_i, mut c)| {
@@ -74,19 +75,18 @@ where
         let data_len = x.ncols();
         let nch_output = self.coarse_ch_selected.len() * nch_fine / 2;
         let mut result = unsafe { Array2::uninit((nch_output, data_len / nch_fine)).assume_init() };
-        for (i, (&c, pfb)) in self
-            .coarse_ch_selected
-            .iter()
+
+        //self.coarse_ch_selected.iter().into_par_iter();
+        let _ = result
+            .axis_chunks_iter_mut(Axis(0), nch_fine / 2)
             .zip(self.pfb.iter_mut())
-            .enumerate()
-        {
-            //println!("{}", c);
-            let y = pfb.analyze(x.slice(s![c, ..]).as_slice().unwrap());
-            let y = fftshift2(y.view());
-            result
-                .slice_mut(s![i * nch_fine / 2..(i + 1) * nch_fine / 2, ..])
-                .assign(&y.slice(s![nch_fine / 4..nch_fine / 4 * 3, ..]));
-        }
+            .zip(x.axis_iter(Axis(0)))
+            .for_each(|((mut r, pfb), x1)| {
+                let y = pfb.analyze(x1.as_slice().unwrap());
+                let y = fftshift2(y.view());
+                r.assign(&y.slice(s![nch_fine / 4..nch_fine / 4 * 3, ..]));
+            });
+        //println!("{:?} {}", result.shape(), nch_fine);
         result
     }
 
