@@ -25,6 +25,8 @@ use itertools_num::linspace;
 
 use ndarray_npy::NpzWriter;
 
+type FloatType=f32;
+
 pub fn main() {
     let matches = App::new("ampl_resp_2stages")
         .arg(
@@ -109,8 +111,8 @@ pub fn main() {
         selected_coarse_ch,
     } = from_reader(&mut cfg_file).unwrap();
 
-    let fmin = matches.value_of("fmin").unwrap().parse::<f64>().unwrap();
-    let fmax = matches.value_of("fmax").unwrap().parse::<f64>().unwrap();
+    let fmin = matches.value_of("fmin").unwrap().parse::<FloatType>().unwrap();
+    let fmax = matches.value_of("fmax").unwrap().parse::<FloatType>().unwrap();
     let nfreq = matches.value_of("nfreq").unwrap().parse::<usize>().unwrap();
     let signal_len = matches
         .value_of("siglen")
@@ -119,14 +121,14 @@ pub fn main() {
         .unwrap();
     let niter = matches.value_of("niter").unwrap().parse::<usize>().unwrap();
 
-    let coeff_coarse = coeff::<f64>(nch_coarse / 2, tap_coarse, k_coarse);
-    let coeff_fine = coeff::<f64>(nch_fine * 2, tap_fine, k_fine);
-    let bandwidth = (fmax - fmin) * f64::PI();
-    let df = bandwidth / (nfreq + 1) as f64;
+    let coeff_coarse = coeff::<FloatType>(nch_coarse / 2, tap_coarse, k_coarse as FloatType);
+    let coeff_fine = coeff::<FloatType>(nch_fine * 2, tap_fine, k_fine as FloatType);
+    let bandwidth = (fmax - fmin) * FloatType::PI();
+    let df = bandwidth / (nfreq + 1) as FloatType;
     let freqs =
-        Array1::from(linspace(f64::PI() * fmin, f64::PI() * fmax - df, nfreq).collect::<Vec<_>>());
-    let mut coarse_spec = Array2::<f64>::zeros((nfreq, selected_coarse_ch.len()));
-    let mut fine_spec = Array2::<f64>::zeros((nfreq, selected_coarse_ch.len() * nch_fine));
+        Array1::from(linspace(FloatType::PI() * fmin, FloatType::PI() * fmax - df, nfreq).collect::<Vec<_>>());
+    let mut coarse_spec = Array2::<FloatType>::zeros((nfreq, selected_coarse_ch.len()));
+    let mut fine_spec = Array2::<FloatType>::zeros((nfreq, selected_coarse_ch.len() * nch_fine));
     println!("{:?}", freqs);
 
     fine_spec
@@ -135,11 +137,11 @@ pub fn main() {
         .zip(freqs.axis_iter(Axis(0)))
         .for_each(|((mut fine_resp, mut coarse_resp), freq)| {
             let freq = freq[()];
-            let mut coarse_pfb = ospfb::Analyzer::<Complex<f64>, f64>::new(
+            let mut coarse_pfb = ospfb::Analyzer::<Complex<FloatType>, FloatType>::new(
                 nch_coarse,
                 ArrayView1::from(&coeff_coarse),
             );
-            let fine_pfb = cspfb::Analyzer::<Complex<f64>, f64>::new(
+            let fine_pfb = cspfb::Analyzer::<Complex<FloatType>, FloatType>::new(
                 nch_fine * 2,
                 ArrayView1::from(&coeff_fine),
             );
@@ -147,13 +149,13 @@ pub fn main() {
             let mut csp = CspPfb::new(&selected_coarse_ch, &fine_pfb);
             let mut osc = COscillator::new(0.0, freq);
             for _i in 0..niter - 1 {
-                let mut signal = vec![Complex::<f64>::default(); signal_len];
+                let mut signal = vec![Complex::<FloatType>::default(); signal_len];
                 signal.iter_mut().for_each(|x| *x = osc.get());
                 let coarse_data = coarse_pfb.analyze(&signal);
                 let _ = csp.analyze(coarse_data.view());
             }
 
-            let mut signal = vec![Complex::<f64>::default(); signal_len];
+            let mut signal = vec![Complex::<FloatType>::default(); signal_len];
             signal.iter_mut().for_each(|x| *x = osc.get());
             let coarse_data = coarse_pfb.analyze(&signal);
             let coarse_spec = coarse_data.map(|x| x.norm_sqr()).sum_axis(Axis(1));

@@ -6,7 +6,7 @@ use rspfb::{
     cfg::{PfbCfg, TwoStageCfg},
     csp_pfb::CspPfb,
     cspfb,
-    oscillator::COscillator,
+    oscillator::ROscillator,
     ospfb,
     windowed_fir::coeff,
 };
@@ -139,7 +139,7 @@ pub fn main() {
         .zip_eq(freqs.axis_iter(Axis(0)).into_par_iter())
         .for_each(|((mut fine_resp, mut coarse_resp), freq)| {
             let freq = freq[()];
-            let mut coarse_pfb = ospfb::Analyzer::<Complex<FloatType>, FloatType>::new(
+            let mut coarse_pfb = ospfb::Analyzer::<FloatType, FloatType>::new(
                 nch_coarse,
                 ArrayView1::from(&coeff_coarse),
             );
@@ -149,15 +149,15 @@ pub fn main() {
             );
 
             let mut csp = CspPfb::new(&selected_coarse_ch, &fine_pfb);
-            let mut osc = COscillator::new(0.0, freq);
+            let mut osc = ROscillator::new(0.0, freq);
             for _i in 0..niter - 1 {
-                let mut signal = vec![Complex::<FloatType>::default(); signal_len];
+                let mut signal = vec![FloatType::default(); signal_len];
                 signal.iter_mut().for_each(|x| *x = osc.get());
                 let coarse_data = coarse_pfb.analyze(&signal);
                 let _ = csp.analyze(coarse_data.view());
             }
 
-            let mut signal = vec![Complex::<FloatType>::default(); signal_len];
+            let mut signal = vec![FloatType::default(); signal_len];
             signal.iter_mut().for_each(|x| *x = osc.get());
             let coarse_data = coarse_pfb.analyze(&signal);
             let coarse_spec = coarse_data.map(|x| x.norm_sqr()).sum_axis(Axis(1));

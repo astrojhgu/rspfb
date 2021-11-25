@@ -28,6 +28,25 @@ where
     }
 }
 
+pub struct ROscillator<T>{
+    phi: T, 
+    dphi_dpt: T,
+}
+
+impl<T> ROscillator<T>
+where T:Float
+{
+    pub fn new(phi:T , dphi_dpt: T)->Self{
+        ROscillator{phi, dphi_dpt}
+    }
+
+    pub fn get(&mut self)->T{
+        let y=self.phi.cos();
+        self.phi=self.phi+self.dphi_dpt;
+        y
+    }
+}
+
 /// Shifting signal by half of the channel spacing
 pub struct HalfChShifter<T> {
     /// number of channels
