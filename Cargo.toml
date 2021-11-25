@@ -1,19 +1,25 @@
 [dependencies]
 clap = '3.0.0-beta.5'
 gnuplot = '0.0.37'
+itertools-num = '0.1.3'
 num-complex = '0.4.0'
 num-traits = '0.2.14'
+rayon = '1.5.1'
 rustfft = '6.0.1'
-special = '0.8.1'
-ndarray-npy = {version="0.8.1", default-features = true}
-itertools-num='0.1.3'
 serde_yaml = '0.8.21'
-serde = { version = "1.0", features = ["derive"] }
-rayon='1.5.1'
+special = '0.8.1'
 
 [dependencies.ndarray]
 features = ['rayon']
-version = '0.15.3'
+version = '0.15.4'
+
+[dependencies.ndarray-npy]
+default-features = true
+version = '0.8.1'
+
+[dependencies.serde]
+features = ['derive']
+version = '1.0.130'
 
 [package]
 authors = ['GU Junhua <jhgu@nao.cas.cn>']
